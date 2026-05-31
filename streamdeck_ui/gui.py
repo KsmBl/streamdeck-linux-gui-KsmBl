@@ -705,6 +705,7 @@ def build_button_state_form(tab) -> None:
     tab_ui.switch_state.valueChanged.connect(partial(update_button_attribute, "switch_state"))
     tab_ui.add_image.clicked.connect(partial(show_button_state_image_dialog))
     tab_ui.sample_icons.clicked.connect(show_sample_icon_picker)
+    tab_ui.upload_gif.clicked.connect(show_gif_upload_dialog)
     tab_ui.remove_image.clicked.connect(show_button_state_remove_image_dialog)
     tab_ui.text_h_align.clicked.connect(partial(update_align_text_horizontal))
     tab_ui.text_v_align.clicked.connect(partial(update_align_text_vertical))
@@ -727,6 +728,7 @@ def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
     ui.switch_state.setEnabled(enabled)
     ui.add_image.setEnabled(enabled)
     ui.sample_icons.setEnabled(enabled)
+    ui.upload_gif.setEnabled(enabled)
     ui.remove_image.setEnabled(enabled)
     ui.text_h_align.setEnabled(enabled)
     ui.text_v_align.setEnabled(enabled)
@@ -819,6 +821,24 @@ def show_button_state_image_dialog() -> None:
             # this will allow the image to update in the case where the user edited the image
             # and saved over the original file
             update_displayed_button_attribute("icon", "")
+        last_image_dir = os.path.dirname(file_name)
+        update_displayed_button_attribute("icon", file_name)
+
+
+def show_gif_upload_dialog() -> None:
+    """Lets the user pick an animated GIF to use as the key image. The render
+    pipeline already animates GIF frames, so this just sets the icon path."""
+    global last_image_dir
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+
+    if deck_id is None or page_id is None or button_id is None:
+        return
+
+    start_dir = last_image_dir or os.path.expanduser("~")
+    file_name = QFileDialog.getOpenFileName(main_window, "Upload GIF", start_dir, "Animated GIF (*.gif)")[0]
+    if file_name:
         last_image_dir = os.path.dirname(file_name)
         update_displayed_button_attribute("icon", file_name)
 

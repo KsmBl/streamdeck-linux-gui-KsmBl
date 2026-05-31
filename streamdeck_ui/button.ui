@@ -44,6 +44,16 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="upload_gif">
+       <property name="toolTip">
+        <string>Upload an animated GIF for this key</string>
+       </property>
+       <property name="text">
+        <string>GIF…</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="remove_image">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Minimum">

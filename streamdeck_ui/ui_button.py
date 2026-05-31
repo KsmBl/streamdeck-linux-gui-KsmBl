@@ -46,6 +46,11 @@ class Ui_ButtonForm(object):
 
         self.horizontalLayout_2.addWidget(self.sample_icons)
 
+        self.upload_gif = QPushButton(ButtonForm)
+        self.upload_gif.setObjectName(u"upload_gif")
+
+        self.horizontalLayout_2.addWidget(self.upload_gif)
+
         self.remove_image = QPushButton(ButtonForm)
         self.remove_image.setObjectName(u"remove_image")
         sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
@@ -408,6 +413,10 @@ class Ui_ButtonForm(object):
         self.sample_icons.setToolTip(QCoreApplication.translate("ButtonForm", u"Choose from the bundled sample icons", None))
 #endif // QT_CONFIG(tooltip)
         self.sample_icons.setText(QCoreApplication.translate("ButtonForm", u"Icons…", None))
+#if QT_CONFIG(tooltip)
+        self.upload_gif.setToolTip(QCoreApplication.translate("ButtonForm", u"Upload an animated GIF for this key", None))
+#endif // QT_CONFIG(tooltip)
+        self.upload_gif.setText(QCoreApplication.translate("ButtonForm", u"GIF…", None))
 #if QT_CONFIG(tooltip)
         self.remove_image.setToolTip(QCoreApplication.translate("ButtonForm", u"Remove the image from the button", None))
 #endif // QT_CONFIG(tooltip)
