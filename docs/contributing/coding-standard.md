@@ -40,6 +40,21 @@ Naming things is hard. Hug has a few strict guidelines on the usage of variable 
 New modules added to the a project that follows the HOPE-8 standard should all live directly within the base `PROJECT_NAME/` directory without nesting. If the modules are meant only for internal use within the project, they should be prefixed with a leading underscore. For example, def _internal_function. Modules should contain a docstring at the top that gives a general explanation of the purpose and then restates the project's use of the MIT license.
 There should be a `tests/test_$MODULE_NAME.py` file created to correspond to every new module that contains test coverage for the module. Ideally, tests should be 1:1 (one test object per code object, one test method per code method) to the extent cleanly possible.
 
+## Qt UI Files
+
+The Qt interface is defined in the `.ui` files (`main.ui`, `button.ui`,
+`settings.ui`) and the `resources.qrc` resource file. These are the source of
+truth. The matching `ui_*.py` / `resources_rc.py` modules are **generated** —
+do not hand-edit them as a long-term change. After editing a `.ui` (or the
+`.qrc`) file, regenerate the Python with:
+
+```bash
+scripts/compile_ui.sh
+```
+
+When a change must touch both (for example, when adding a widget without the Qt
+Designer), keep the `.ui` file and its generated module in sync.
+
 ## Automated Code Cleaners
 
 All code submitted to Hug should be formatted using Black and isort.

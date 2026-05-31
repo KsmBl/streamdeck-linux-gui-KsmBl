@@ -1,4 +1,4 @@
-from time import sleep
+from time import monotonic, sleep
 
 import pytest
 
@@ -18,7 +18,11 @@ def test_dim_to_zero(brightness: int, dim_percent: int, dimmed: int):
 
     dimmer = Dimmer(1, brightness, dim_percent, dim)
     dimmer.reset()
-    sleep(1.1)
+    # The dim timer fires after 1s; poll with generous slack so the assertion is
+    # not flaky when the machine is under load (e.g. running the full suite).
+    deadline = monotonic() + 4.0
+    while call_count < 2 and monotonic() < deadline:
+        sleep(0.05)
     assert dimmer.dimmed
     assert call_count == 2
     assert last_value == dimmed
