@@ -496,7 +496,7 @@ class StreamDeckServer:
         """Returns the QPixmap value for the given button (streamdeck, page, button)"""
         pil_image = self.display_handlers[serial_number].get_image(page, button)
         if pil_image:
-            qt_image = ImageQt(pil_image)
+            qt_image: QImage = ImageQt(pil_image)
             qt_image = qt_image.convertToFormat(QImage.Format.Format_ARGB32)
             return QPixmap(qt_image)
         return None
