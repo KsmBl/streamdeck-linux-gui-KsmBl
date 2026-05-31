@@ -64,6 +64,25 @@ def test_kill_daemon_sends_sigterm(tmp_path):
     kill.assert_called_once_with(4321, signal.SIGTERM)
 
 
+def test_running_pid_when_alive(tmp_path):
+    pid_file = tmp_path / "streamdeck.pid"
+    pid_file.write_text("4321")
+    with patch("os.kill") as kill:  # no exception => process is alive
+        assert daemon.running_pid(str(pid_file)) == 4321
+    kill.assert_called_once_with(4321, 0)
+
+
+def test_running_pid_when_dead(tmp_path):
+    pid_file = tmp_path / "streamdeck.pid"
+    pid_file.write_text("4321")
+    with patch("os.kill", side_effect=ProcessLookupError):
+        assert daemon.running_pid(str(pid_file)) is None
+
+
+def test_running_pid_no_file(tmp_path):
+    assert daemon.running_pid(str(tmp_path / "missing.pid")) is None
+
+
 def test_kill_daemon_stale_pid(tmp_path):
     pid_file = tmp_path / "streamdeck.pid"
     pid_file.write_text("4321")

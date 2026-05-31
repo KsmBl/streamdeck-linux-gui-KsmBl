@@ -65,6 +65,34 @@ def test_curated_sets_are_substantial():
     assert len(font_icons.FONT_AWESOME_BRANDS) > 20
 
 
+def test_recolor_icon_tints_opaque_pixels(tmp_path):
+    # A white square on transparent background.
+    src = tmp_path / "white.png"
+    image = Image.new("RGBA", (8, 8), (255, 255, 255, 255))
+    image.save(src)
+
+    out = font_icons.recolor_icon(str(src), "#ff8800", str(tmp_path / "cache"))
+    recolored = Image.open(out).convert("RGBA")
+    assert recolored.getpixel((0, 0)) == (255, 136, 0, 255)
+
+
+def test_recolor_icon_bad_file_returns_original(tmp_path):
+    bad = tmp_path / "not-an-image.txt"
+    bad.write_text("nope")
+    assert font_icons.recolor_icon(str(bad), "#ffffff", str(tmp_path / "cache")) == str(bad)
+
+
+def test_browser_icon_from_desktop(tmp_path):
+    from streamdeck_ui.modules.applications import DesktopApplication
+
+    apps = [DesktopApplication(name="Firefox Web Browser", command="firefox %u", icon_name="firefox")]
+    with patch.object(font_icons, "list_desktop_applications", return_value=apps), patch.object(
+        font_icons, "find_icon_file", return_value="/themes/firefox.png"
+    ):
+        assert font_icons._browser_icon_from_desktop("Firefox") == "/themes/firefox.png"
+        assert font_icons._browser_icon_from_desktop("Vivaldi") is None
+
+
 def test_build_browser_icons_prefers_system_theme(tmp_path):
     def fake_theme(name):
         return "/themes/firefox.png" if name == "firefox" else None

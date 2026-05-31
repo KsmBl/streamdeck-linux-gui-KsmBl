@@ -8,6 +8,7 @@ process is fully detached from the controlling terminal.
 import os
 import signal
 import sys
+from typing import Optional
 
 from streamdeck_ui.config import DAEMON_PID_FILE, LOG_FILE
 
@@ -75,6 +76,23 @@ def _read_pid(path: str) -> "int | None":
             return int(pid_file.read().strip())
     except (OSError, ValueError):
         return None
+
+
+def running_pid(path: str = DAEMON_PID_FILE) -> Optional[int]:
+    """Returns the PID of the running instance recorded in the PID file, or
+    ``None`` if there is no live process."""
+    pid = _read_pid(path)
+    if pid is None:
+        return None
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return None
+    except PermissionError:
+        return pid
+    except OSError:
+        return None
+    return pid
 
 
 def kill_daemon(path: str = DAEMON_PID_FILE) -> str:

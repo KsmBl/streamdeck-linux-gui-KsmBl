@@ -319,10 +319,20 @@ class Ui_ButtonForm(object):
 
         self.formLayout.setWidget(7, QFormLayout.LabelRole, self.label_5)
 
+        self.horizontalLayout_keys = QHBoxLayout()
+        self.horizontalLayout_keys.setObjectName(u"horizontalLayout_keys")
         self.keys = QLineEdit(ButtonForm)
         self.keys.setObjectName(u"keys")
 
-        self.formLayout.setWidget(7, QFormLayout.FieldRole, self.keys)
+        self.horizontalLayout_keys.addWidget(self.keys)
+
+        self.media_keys = QPushButton(ButtonForm)
+        self.media_keys.setObjectName(u"media_keys")
+
+        self.horizontalLayout_keys.addWidget(self.media_keys)
+
+
+        self.formLayout.setLayout(7, QFormLayout.FieldRole, self.horizontalLayout_keys)
 
         self.label_8 = QLabel(ButtonForm)
         self.label_8.setObjectName(u"label_8")
@@ -436,6 +446,10 @@ class Ui_ButtonForm(object):
 #endif // QT_CONFIG(tooltip)
         self.select_application.setText(QCoreApplication.translate("ButtonForm", u"App…", None))
         self.label_5.setText(QCoreApplication.translate("ButtonForm", u"Press Keys:", None))
+#if QT_CONFIG(tooltip)
+        self.media_keys.setToolTip(QCoreApplication.translate("ButtonForm", u"Insert a media or brightness key", None))
+#endif // QT_CONFIG(tooltip)
+        self.media_keys.setText(QCoreApplication.translate("ButtonForm", u"Media…", None))
         self.label_8.setText(QCoreApplication.translate("ButtonForm", u"Switch Page:", None))
 #if QT_CONFIG(tooltip)
         self.set_previous_page.setToolTip(QCoreApplication.translate("ButtonForm", u"Turn this key into a 'previous page' key (sets a premade icon)", None))

@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QPushButton, QToolButton
 
 from streamdeck_ui import gui
@@ -24,6 +25,7 @@ def _mock_picker(mocker, *, accepted=True, icon_path=SAMPLE):
     picker = MagicMock()
     picker.exec.return_value = accepted
     picker.selected_icon_path.return_value = icon_path
+    picker.selected_color.return_value = None
     mocker.patch.object(gui, "SampleIconPicker", return_value=picker)
     return picker
 
@@ -44,6 +46,35 @@ def test_sample_icon_picker_sets_icon(qtbot, api_and_window, mocker):
 
     icon_spy.assert_called_once()
     assert icon_spy.call_args.args[-1] == SAMPLE
+
+
+@pytest.mark.serial
+def test_picker_search_and_color(qtbot):
+    categories = {
+        "media": [("Play", "/x/play.png"), ("Stop", "/x/stop.png")],
+        "volume": [("Volume Up", "/x/vol.png")],
+    }
+    picker = gui.SampleIconPicker(None, categories)
+    qtbot.addWidget(picker)
+
+    # Searching spans all categories and filters by name.
+    picker.search.setText("vol")
+    visible = [picker.list.item(i).text() for i in range(picker.list.count())]
+    assert visible == ["Volume Up"]
+
+    # No tint by default; a chosen colour is returned when "Recolor" is on.
+    assert picker.selected_color() is None
+    picker._color = QColor("#123456")
+    picker.recolor.setChecked(True)
+    assert picker.selected_color() == "#123456"
+
+
+@pytest.mark.serial
+def test_media_presets_are_valid_keys():
+    from streamdeck_ui.modules.keyboard import get_valid_key_names
+
+    valid = set(get_valid_key_names())
+    assert all(keys in valid for _label, keys in gui.MEDIA_KEY_PRESETS)
 
 
 @pytest.mark.serial

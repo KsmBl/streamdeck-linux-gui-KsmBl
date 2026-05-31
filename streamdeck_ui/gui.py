@@ -6,11 +6,11 @@ import signal
 import sys
 from functools import partial
 from subprocess import Popen  # nosec - Need to allow users to specify arbitrary commands
-from typing import Dict, List, Optional, Tuple, Union, cast
+from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 from importlib_metadata import PackageNotFoundError, version
 from PySide6.QtCore import QMimeData, QSettings, QSignalBlocker, QSize, Qt, QTimer, QUrl
-from PySide6.QtGui import QAction, QDesktopServices, QDrag, QFont, QIcon, QPalette
+from PySide6.QtGui import QAction, QColor, QDesktopServices, QDrag, QFont, QIcon, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMessageBox,
+    QPushButton,
     QSizePolicy,
     QSystemTrayIcon,
     QToolButton,
@@ -61,11 +62,13 @@ from streamdeck_ui.modules.applications import (
     load_application_qicon,
     resolve_icon_to_file,
 )
-from streamdeck_ui.modules.daemon import daemonize, kill_daemon, remove_pid_file, write_pid_file
+from streamdeck_ui.modules.daemon import daemonize, kill_daemon, remove_pid_file, running_pid, write_pid_file
 from streamdeck_ui.modules.font_icons import (
     build_browser_icons,
     build_font_awesome_brand_icons,
     build_font_awesome_icons,
+    find_font_awesome_fonts,
+    recolor_icon,
 )
 from streamdeck_ui.modules.fonts import DEFAULT_FONT_FAMILY, FONTS_DICT, find_font_info
 from streamdeck_ui.modules.keyboard import KeyPressAutoComplete, keyboard_press_keys, keyboard_write
@@ -671,6 +674,10 @@ def build_button_state_form(tab) -> None:
     tab_ui.command.textChanged.connect(partial(debounced_update_button_attribute, "command"))
     tab_ui.select_application.clicked.connect(partial(show_application_picker, tab_ui))
     tab_ui.keys.textChanged.connect(partial(debounced_update_button_attribute, "keys"))
+    media_menu = QMenu(tab_ui.media_keys)
+    for preset_label, preset_keys in MEDIA_KEY_PRESETS:
+        media_menu.addAction(preset_label, partial(apply_media_preset, tab_ui, preset_keys))
+    tab_ui.media_keys.setMenu(media_menu)
     tab_ui.write.textChanged.connect(lambda: debounced_update_button_attribute("write", tab_ui.write.toPlainText()))
     tab_ui.change_brightness.valueChanged.connect(partial(update_button_attribute, "change_brightness"))
     tab_ui.text_font_size.valueChanged.connect(partial(update_displayed_button_attribute, "font_size"))
@@ -694,6 +701,7 @@ def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
     ui.command.setEnabled(enabled)
     ui.select_application.setEnabled(enabled)
     ui.keys.setEnabled(enabled)
+    ui.media_keys.setEnabled(enabled)
     ui.text_font.setEnabled(enabled)
     ui.text_font_style.setEnabled(enabled)
     ui.text_font_size.setEnabled(enabled)
@@ -943,17 +951,27 @@ def show_application_picker(ui: Ui_ButtonForm) -> None:
             show_tray_warning_message(f"No icon could be found for {application.name}.")
 
 
-class SampleIconPicker(QDialog):
-    """A dialog that shows the bundled sample icons, grouped by category, so the
-    user can pick a ready made icon for a button."""
+IconProvider = Union[List[Tuple[str, str]], Callable[[], List[Tuple[str, str]]]]
 
-    def __init__(self, parent, categories: Dict[str, List[Tuple[str, str]]]):
+
+class SampleIconPicker(QDialog):
+    """A searchable dialog of ready-made icons grouped by category, with an
+    optional colour tint. Categories may be supplied lazily as callables so that
+    expensive ones are only built when first viewed or searched."""
+
+    def __init__(self, parent, categories: Dict[str, IconProvider]):
         super().__init__(parent)
         self.setWindowTitle("Sample Icons")
-        self.resize(460, 500)
-        self._categories = categories
+        self.resize(520, 560)
+        self._providers = categories
+        self._materialized: Dict[str, List[Tuple[str, str]]] = {}
 
         layout = QVBoxLayout(self)
+
+        self.search = QLineEdit(self)
+        self.search.setPlaceholderText("Search icons...")
+        self.search.setClearButtonEnabled(True)
+        layout.addWidget(self.search)
 
         self.category = QComboBox(self)
         self.category.addItem("All categories", userData=None)
@@ -967,34 +985,74 @@ class SampleIconPicker(QDialog):
         self.list.setGridSize(QSize(96, 96))
         self.list.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.list.setMovement(QListWidget.Movement.Static)
+        self.list.setUniformItemSizes(True)
         layout.addWidget(self.list)
+
+        color_row = QHBoxLayout()
+        self.recolor = QCheckBox("Recolor", self)
+        color_row.addWidget(self.recolor)
+        self.color_button = QPushButton(self)
+        self.color_button.setMaximumWidth(60)
+        self.color_button.setEnabled(False)
+        self._color = QColor("#ffffff")
+        self.color_button.setPalette(QPalette(self._color))
+        color_row.addWidget(self.color_button)
+        color_row.addStretch(1)
+        layout.addLayout(color_row)
 
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
         )
         layout.addWidget(self.button_box)
 
-        self._populate(None)
+        # Default to the first concrete category so opening the dialog is fast.
+        if self.category.count() > 1:
+            self.category.setCurrentIndex(1)
+        self._refresh()
 
-        self.category.currentIndexChanged.connect(lambda: self._populate(self.category.currentData()))
+        self.search.textChanged.connect(self._refresh)
+        self.category.currentIndexChanged.connect(self._refresh)
+        self.recolor.toggled.connect(self.color_button.setEnabled)
+        self.color_button.clicked.connect(self._choose_color)
         self.list.itemDoubleClicked.connect(lambda _item: self.accept())
         self.list.itemSelectionChanged.connect(self._update_ok_enabled)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 
-    def _populate(self, category: Optional[str]) -> None:
+    def _materialize(self, category: str) -> List[Tuple[str, str]]:
+        if category not in self._materialized:
+            provider = self._providers[category]
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            try:
+                self._materialized[category] = list(provider()) if callable(provider) else list(provider)
+            finally:
+                QApplication.restoreOverrideCursor()
+        return self._materialized[category]
+
+    def _refresh(self) -> None:
+        search = self.search.text().strip().lower()
+        selected = self.category.currentData()
+        # Searching, or the "All categories" entry, spans every category.
+        categories = list(self._providers) if (search or selected is None) else [selected]
+
         self.list.clear()
-        for name, icons in self._categories.items():
-            if category is not None and name != category:
-                continue
-            for display_name, path in icons:
+        for category in categories:
+            for display_name, path in self._materialize(category):
+                if search and search not in display_name.lower():
+                    continue
                 item = QListWidgetItem(QIcon(path), display_name)
                 item.setData(Qt.ItemDataRole.UserRole, path)
-                item.setToolTip(f"{name.replace('_', ' ').title()}: {display_name}")
+                item.setToolTip(f"{category.replace('_', ' ').title()}: {display_name}")
                 self.list.addItem(item)
         if self.list.count():
             self.list.setCurrentRow(0)
         self._update_ok_enabled()
+
+    def _choose_color(self) -> None:
+        color = QColorDialog.getColor(self._color, self, "Select icon color")
+        if color.isValid():
+            self._color = color
+            self.color_button.setPalette(QPalette(color))
 
     def _update_ok_enabled(self) -> None:
         self.button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(self.list.currentItem() is not None)
@@ -1004,6 +1062,11 @@ class SampleIconPicker(QDialog):
         if item is None:
             return None
         return item.data(Qt.ItemDataRole.UserRole)
+
+    def selected_color(self) -> Optional[str]:
+        """Returns the chosen tint colour as a hex string, or None to keep the
+        icon unchanged."""
+        return self._color.name() if self.recolor.isChecked() else None
 
 
 def show_sample_icon_picker() -> None:
@@ -1016,19 +1079,19 @@ def show_sample_icon_picker() -> None:
     if deck_id is None or page_id is None or button_id is None:
         return
 
-    categories = dict(list_sample_icons())
+    categories: Dict[str, IconProvider] = dict(list_sample_icons())
 
-    # Real browser icons (system theme, falling back to Font Awesome brands) and
-    # a Font Awesome category are added dynamically when their sources exist.
+    # Real browser icons (system theme, falling back to colourised Font Awesome
+    # brands) are cheap to build, so they are added eagerly when present. The
+    # large Font Awesome categories are added lazily (built only when viewed).
     browsers = build_browser_icons()
     if browsers:
         categories["browsers"] = browsers
-    font_awesome = build_font_awesome_icons()
-    if font_awesome:
-        categories["Font Awesome"] = font_awesome
-    font_awesome_brands = build_font_awesome_brand_icons()
-    if font_awesome_brands:
-        categories["Font Awesome Brands"] = font_awesome_brands
+    fonts = find_font_awesome_fonts()
+    if fonts["solid"]:
+        categories["Font Awesome"] = build_font_awesome_icons
+    if fonts["brands"]:
+        categories["Font Awesome Brands"] = build_font_awesome_brand_icons
 
     if not categories:
         QMessageBox.information(main_window, "No sample icons", "No sample icons were found.")
@@ -1040,7 +1103,40 @@ def show_sample_icon_picker() -> None:
 
     icon_path = picker.selected_icon_path()
     if icon_path:
+        color = picker.selected_color()
+        if color:
+            icon_path = recolor_icon(icon_path, color)
         update_displayed_button_attribute("icon", icon_path)
+
+
+# Ready-made multimedia / brightness key actions. The values are evdev key
+# names accepted by the "Press Keys" field.
+MEDIA_KEY_PRESETS = [
+    ("Volume Up", "volumeup"),
+    ("Volume Down", "volumedown"),
+    ("Volume Mute", "mute"),
+    ("Play / Pause", "playpause"),
+    ("Next Track", "nextsong"),
+    ("Previous Track", "previoussong"),
+    ("Stop", "stopcd"),
+    ("Brightness Up", "brightnessup"),
+    ("Brightness Down", "brightnessdown"),
+]
+
+
+def apply_media_preset(ui: Ui_ButtonForm, keys: str, _checked: bool = False) -> None:
+    """Sets the selected button's Press Keys action to a media/brightness key."""
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+
+    if deck_id is None or page_id is None or button_id is None:
+        return
+
+    blocker = QSignalBlocker(ui.keys)
+    ui.keys.setText(keys)
+    del blocker
+    update_button_attribute("keys", keys)
 
 
 def configure_page_navigation(ui: Ui_ButtonForm, direction: str, _checked: bool = False) -> None:
@@ -1670,6 +1766,12 @@ def start(_exit: bool = False) -> None:
         print("  -n, --no-ui\tRun the program without showing a UI")
         print("  -d, --daemon\tRun detached in the background (implies --no-ui)")
         print("  --daemon-kill\tStop the running background instance and exit")
+        print("  --daemon-status\tReport whether an instance is running and exit")
+        return
+
+    if "--daemon-status" in sys.argv:
+        pid = running_pid()
+        print(f"Stream Deck is running (PID {pid})." if pid else "Stream Deck is not running.")
         return
 
     if "--daemon-kill" in sys.argv:

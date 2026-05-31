@@ -8,13 +8,28 @@ referenced here.
 """
 
 import os
+import re
 import subprocess
 from typing import Dict, List, Optional, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
 from streamdeck_ui.config import FONT_ICON_CACHE_DIR
-from streamdeck_ui.modules.applications import find_icon_file
+from streamdeck_ui.modules.applications import find_icon_file, list_desktop_applications
+
+# Keywords used to recognise an installed browser from its desktop entry when a
+# direct icon-theme name is not found.
+BROWSER_DESKTOP_KEYWORDS: Dict[str, List[str]] = {
+    "Firefox": ["firefox"],
+    "Chrome": ["google-chrome", "chrome"],
+    "Chromium": ["chromium"],
+    "Edge": ["microsoft-edge", "msedge"],
+    "Vivaldi": ["vivaldi"],
+    "Brave": ["brave"],
+}
+
+# Cache of {glyph name: code point} maps read from font files via fonttools.
+_font_cmap_cache: Dict[str, Dict[str, int]] = {}
 
 # Curated set of useful Font Awesome "Free Solid" glyphs, keyed by display name.
 # The values are the code points used by the installed font (a mix of Unicode
@@ -286,6 +301,70 @@ def find_font_awesome_fonts() -> Dict[str, Optional[str]]:
     return fonts
 
 
+def _font_name_to_codepoint(font_path: str) -> Dict[str, int]:
+    """Returns the font's {glyph name: code point} map using fonttools, if it is
+    available. Cached per font; empty when fonttools is missing or fails."""
+    if font_path in _font_cmap_cache:
+        return _font_cmap_cache[font_path]
+
+    mapping: Dict[str, int] = {}
+    try:
+        from fontTools.ttLib import TTFont  # optional dependency
+
+        mapping = {name: code_point for code_point, name in TTFont(font_path).getBestCmap().items()}
+    except Exception:  # noqa: BLE001 - fonttools missing or font unreadable; fall back gracefully
+        mapping = {}
+
+    _font_cmap_cache[font_path] = mapping
+    return mapping
+
+
+def _resolve_codepoint(font_path: str, display_name: str, fallback: int) -> int:
+    """Resolves a curated icon's code point from the installed font by its Font
+    Awesome glyph name (robust across font versions). Falls back to the bundled
+    code point when fonttools is unavailable or the name is not present."""
+    glyph_name = display_name.lower().replace(" ", "-")
+    return _font_name_to_codepoint(font_path).get(glyph_name, fallback)
+
+
+def recolor_icon(src_path: str, color_hex: str, cache_dir: str = FONT_ICON_CACHE_DIR) -> str:
+    """Returns a recoloured copy of a monochrome icon, tinting its opaque pixels
+    to ``color_hex`` (e.g. ``#ff8800``). Returns the original path unchanged if
+    the image cannot be processed."""
+    try:
+        image = Image.open(src_path).convert("RGBA")
+    except (OSError, ValueError):
+        return src_path
+
+    red, green, blue = (int(color_hex[i : i + 2], 16) for i in (1, 3, 5))
+    tinted = Image.new("RGBA", image.size, (red, green, blue, 255))
+    tinted.putalpha(image.getchannel("A"))
+    image = tinted
+
+    out_dir = os.path.join(cache_dir, "recolored")
+    os.makedirs(out_dir, exist_ok=True)
+    safe = re.sub(r"[^A-Za-z0-9_.-]", "_", os.path.basename(src_path))
+    out_path = os.path.join(out_dir, f"{color_hex[1:]}_{safe}")
+    if not out_path.lower().endswith(".png"):
+        out_path += ".png"
+    image.save(out_path, "PNG")
+    return out_path
+
+
+def _browser_icon_from_desktop(name: str) -> Optional[str]:
+    """Finds an installed browser's real icon by matching its desktop entry."""
+    keywords = BROWSER_DESKTOP_KEYWORDS.get(name, [])
+    if not keywords:
+        return None
+    for application in list_desktop_applications():
+        haystack = f"{application.name} {application.command}".lower()
+        if any(keyword in haystack for keyword in keywords):
+            icon = find_icon_file(application.icon_name)
+            if icon:
+                return icon
+    return None
+
+
 def _font_supports(font: "ImageFont.FreeTypeFont", code_point: int) -> bool:
     """True if the font has a real glyph for the code point.
 
@@ -332,7 +411,8 @@ def _render_catalog(
     if not font_path:
         return []
     icons: List[Tuple[str, str]] = []
-    for name, code_point in glyphs.items():
+    for name, fallback_code_point in glyphs.items():
+        code_point = _resolve_codepoint(font_path, name, fallback_code_point)
         out_path = os.path.join(cache_dir, cache_subdir, f"{code_point:04x}.png")
         if os.path.isfile(out_path) or render_glyph(font_path, code_point, out_path):
             icons.append((name, out_path))
@@ -368,6 +448,10 @@ def build_browser_icons(cache_dir: str = FONT_ICON_CACHE_DIR) -> List[Tuple[str,
             path = find_icon_file(theme_name)
             if path:
                 break
+
+        # Fall back to the icon declared by the browser's desktop entry.
+        if not path:
+            path = _browser_icon_from_desktop(name)
 
         if not path and brands and name in FONT_AWESOME_BROWSER_BRANDS:
             out_path = os.path.join(cache_dir, "browsers", f"{name.lower()}.png")
