@@ -40,6 +40,9 @@ update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
 
 echo ">>> Removing fish shell completions ..."
 rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/streamdeck.fish"
+if command -v fish >/dev/null 2>&1; then
+    fish -c "set -q fish_user_paths; and set -U fish_user_paths (string match --invert -- '$BIN_DIR' \$fish_user_paths)" >/dev/null 2>&1 || true
+fi
 
 if [ -f "$UDEV_RULES_DEST" ]; then
     echo ">>> Removing udev rules from $UDEV_RULES_DEST (requires sudo)..."

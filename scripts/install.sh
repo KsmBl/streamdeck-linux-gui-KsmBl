@@ -84,6 +84,9 @@ FISH_COMPLETION_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/streamd
 if command -v fish >/dev/null 2>&1 && [ -f "$FISH_COMPLETION_SRC" ]; then
     echo ">>> Installing fish shell completions ..."
     install -Dm644 "$FISH_COMPLETION_SRC" "$FISH_COMPLETION_DEST"
+    # fish only autoloads a command's completions when the command is on PATH,
+    # so make sure the bin directory is on fish's PATH.
+    fish -c "fish_add_path -g '$BIN_DIR'" >/dev/null 2>&1 || true
 fi
 
 echo
