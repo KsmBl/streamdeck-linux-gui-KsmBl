@@ -72,6 +72,8 @@ Once you're up and running, consider installing a [systemd service](docs/install
 
 There are scripts for setting up streamdeck_ui on [Debian/Ubuntu](scripts/ubuntu_install.sh) and [Fedora](scripts/fedora_install.sh).
 
+To install **this source checkout** (distro independent), run [`scripts/install.sh`](scripts/install.sh). It installs the udev rules, sets up an isolated virtual environment, links the `streamdeck`/`streamdeckc` commands into `~/.local/bin`, and adds an application launcher. Remove everything again with [`scripts/uninstall.sh`](scripts/uninstall.sh) (pass `--purge` to also delete your configuration).
+
 ## Updating Documentation
 
 Documentation is powered by mkdocs-material, and its on the [docs](docs/) folder. Install it with `pip install mkdocs-material` and run `mkdocs serve` to see the changes locally, before submitting a PR.
