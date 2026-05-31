@@ -62,6 +62,7 @@ from streamdeck_ui.modules.applications import (
     resolve_icon_to_file,
 )
 from streamdeck_ui.modules.daemon import daemonize, kill_daemon, remove_pid_file, write_pid_file
+from streamdeck_ui.modules.font_icons import build_browser_icons, build_font_awesome_icons
 from streamdeck_ui.modules.fonts import DEFAULT_FONT_FAMILY, FONTS_DICT, find_font_info
 from streamdeck_ui.modules.keyboard import KeyPressAutoComplete, keyboard_press_keys, keyboard_write
 from streamdeck_ui.modules.sample_icons import list_sample_icons
@@ -1011,9 +1012,19 @@ def show_sample_icon_picker() -> None:
     if deck_id is None or page_id is None or button_id is None:
         return
 
-    categories = list_sample_icons()
+    categories = dict(list_sample_icons())
+
+    # Real browser icons (system theme, falling back to Font Awesome brands) and
+    # a Font Awesome category are added dynamically when their sources exist.
+    browsers = build_browser_icons()
+    if browsers:
+        categories["browsers"] = browsers
+    font_awesome = build_font_awesome_icons()
+    if font_awesome:
+        categories["Font Awesome"] = font_awesome
+
     if not categories:
-        QMessageBox.information(main_window, "No sample icons", "No bundled sample icons were found.")
+        QMessageBox.information(main_window, "No sample icons", "No sample icons were found.")
         return
 
     picker = SampleIconPicker(main_window, categories)

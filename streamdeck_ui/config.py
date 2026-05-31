@@ -36,6 +36,12 @@ PREVIOUS_PAGE_ICON = os.path.join(PROJECT_PATH, "icons", "previous_page.png")
 # made button images.
 SAMPLE_ICONS_DIR = os.path.join(PROJECT_PATH, "icons", "samples")
 
+# Where icons rendered from an installed Font Awesome font are cached so they
+# can be used as button images.
+FONT_ICON_CACHE_DIR = os.path.join(
+    os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")), "streamdeck_ui", "font_icons"
+)
+
 # Sentinel values stored in a button's "switch_page" attribute to request
 # navigation relative to the current page (with wrap-around), as opposed to a
 # positive value which switches to that absolute (1-based) page number.

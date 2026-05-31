@@ -34,6 +34,8 @@ def test_sample_icon_picker_sets_icon(qtbot, api_and_window, mocker):
     _select_first_button(qtbot, main_window)
 
     mocker.patch.object(gui, "list_sample_icons", return_value=CATEGORIES)
+    mocker.patch.object(gui, "build_browser_icons", return_value=[])
+    mocker.patch.object(gui, "build_font_awesome_icons", return_value=[])
     _mock_picker(mocker, accepted=True)
     icon_spy = mocker.spy(api, "set_button_icon")
 
@@ -49,6 +51,8 @@ def test_sample_icon_picker_cancelled(qtbot, api_and_window, mocker):
     _select_first_button(qtbot, main_window)
 
     mocker.patch.object(gui, "list_sample_icons", return_value=CATEGORIES)
+    mocker.patch.object(gui, "build_browser_icons", return_value=[])
+    mocker.patch.object(gui, "build_font_awesome_icons", return_value=[])
     _mock_picker(mocker, accepted=False)
     icon_spy = mocker.spy(api, "set_button_icon")
 
