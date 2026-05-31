@@ -100,6 +100,12 @@ text_update_timer: Optional[QTimer] = None
 focus_watcher: Optional[FocusWatcher] = None
 "Background watcher that switches pages based on the focused application"
 
+last_manual_page: Dict[str, int] = {}
+"The last page the user selected themselves, per deck (used to restore it when a focused app has no bound page)"
+
+_focus_switching: bool = False
+"True while a page change is driven by the focus watcher (so it is not recorded as a manual selection)"
+
 BUTTON_STYLE = """
     QToolButton {
     margin: 2px;
@@ -355,6 +361,10 @@ def handle_change_page() -> None:
     page_id = _page()
     if deck_id is not None and page_id is not None:
         api.set_page(deck_id, page_id)
+        if not _focus_switching:
+            # Remember pages the user chooses, so we can return to them when a
+            # focused application has no page of its own.
+            last_manual_page[deck_id] = page_id
         redraw_buttons()
         api.reset_dimmer(deck_id)
     build_button_state_pages()
@@ -1417,6 +1427,8 @@ def build_device(ui, _device_index=None) -> None:
 
             # Show which application each page is bound to.
             refresh_focus_tab_tooltips(ui, deck_id)
+            # Baseline for "return to the last manual page" is the current page.
+            last_manual_page.setdefault(deck_id, api.get_page(deck_id))
 
             # Draw the buttons for the active page
             redraw_buttons()
@@ -1608,21 +1620,39 @@ def toggle_dark_mode(checked: bool) -> None:
 
 def _switch_to_page(ui, deck_id: str, target_page: int) -> None:
     """Switches a deck to the given page and reflects it in the UI when that
-    deck is the one currently shown."""
-    api.set_page(deck_id, target_page)
-    if _deck() == deck_id:
-        for tab in range(ui.pages.count()):
-            if ui.pages.widget(tab).property("page_id") == target_page:
-                ui.pages.setCurrentIndex(tab)
-                break
+    deck is the one currently shown. Marked as a focus-driven switch so it is
+    not recorded as a manual page selection."""
+    global _focus_switching
+    _focus_switching = True
+    try:
+        api.set_page(deck_id, target_page)
+        if _deck() == deck_id:
+            for tab in range(ui.pages.count()):
+                if ui.pages.widget(tab).property("page_id") == target_page:
+                    ui.pages.setCurrentIndex(tab)
+                    break
+    finally:
+        _focus_switching = False
 
 
 def handle_focus_changed(ui, app: str) -> None:
     """Switches each deck to the page bound to the now-focused application.
-    Runs in the GUI thread (queued signal from the watcher)."""
+
+    When the focused application has no bound page, the deck returns to the last
+    page the user selected manually. Runs in the GUI thread (queued signal from
+    the watcher)."""
     for deck_id in list(api.decks_by_serial.keys()):
         try:
-            target_page = api.get_focus_pages(deck_id).get(app)
+            focus_pages = api.get_focus_pages(deck_id)
+            if not focus_pages:
+                continue  # feature inactive for this deck
+
+            target_page = focus_pages.get(app)
+            if target_page is None:
+                # The focused app has no page of its own; restore the last
+                # manually selected page.
+                target_page = last_manual_page.get(deck_id)
+
             if target_page is None or target_page not in api.get_pages(deck_id):
                 continue
             if api.get_page(deck_id) == target_page:
