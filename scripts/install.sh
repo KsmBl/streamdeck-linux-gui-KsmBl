@@ -78,6 +78,14 @@ StartupNotify=false
 EOF
 update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
 
+# --- shell completions ----------------------------------------------------
+FISH_COMPLETION_SRC="$REPO_ROOT/completions/streamdeck.fish"
+FISH_COMPLETION_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/streamdeck.fish"
+if command -v fish >/dev/null 2>&1 && [ -f "$FISH_COMPLETION_SRC" ]; then
+    echo ">>> Installing fish shell completions ..."
+    install -Dm644 "$FISH_COMPLETION_SRC" "$FISH_COMPLETION_DEST"
+fi
+
 echo
 echo "Installation complete!"
 echo "  - Launch it from your application menu ('Stream Deck UI'), or run: streamdeck"

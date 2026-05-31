@@ -38,6 +38,9 @@ rm -f "$DESKTOP_DIR/$APP_NAME.desktop"
 rm -f "$ICON_DIR/$APP_NAME.png"
 update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
 
+echo ">>> Removing fish shell completions ..."
+rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/streamdeck.fish"
+
 if [ -f "$UDEV_RULES_DEST" ]; then
     echo ">>> Removing udev rules from $UDEV_RULES_DEST (requires sudo)..."
     sudo rm -f "$UDEV_RULES_DEST"
