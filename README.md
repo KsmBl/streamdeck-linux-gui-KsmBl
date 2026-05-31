@@ -39,7 +39,7 @@ All credit to the orignal authors, and the many contributors to the project.
 * **Launch Installed Applications**: Click **App…** next to the Command field to pick an installed application from a searchable list. The launch command is filled in for you and a fitting icon (from your icon theme) is applied to the button automatically.
 * **Dark Mode**: Toggle a dark interface theme from **View → Dark Mode**. Your choice is remembered between sessions.
 * **Page Navigation Keys**: Next to *Switch Page*, the **◀ Prev Page** / **Next Page ▶** buttons turn the selected key into a relative page navigation key (with wrap-around) and apply a premade arrow icon automatically.
-* **Sample Icons**: An **Icons…** button offers a bundled set of ready-made icons (media, volume, brightness, web and system) to use as button images.
+* **Sample Icons**: An **Icons…** button offers a bundled set of ready-made icons (browsers, media, volume, brightness, web and system) to use as button images.
 * **Button Pages**: streamdeck_ui supports multiple pages of buttons and dynamically setting up buttons to switch between those pages.
 * **Auto Reconnect**: Automatically and gracefully reconnects, in the case the device is unplugged and replugged in.
 * **Import/Export**: Supports saving and restoring Stream Deck configuration.
