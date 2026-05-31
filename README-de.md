@@ -29,9 +29,16 @@ _________________
 * **Helligkeits-Steuerung**: Unterstützt die Einstellung der Helligkeit von der Konfigurations-Oberfläche und den Knöpfen am Gerät selbst.
 * **Konfigurierbares Tastenbild**: Icon + Text, nur Icon und nur Text sind pro Taste des Stream Decks konfigurierbar.
 * **Multi-Action Unterstützung**: Kommandos starten, Text schreiben und Hotkey-Kombinationen drücken mit einem einzigen Tastendruck auf dem Stream Deck.
+* **Medien- & Helligkeitstasten**: Ein **Media…**-Menü neben *Press Keys* fügt fertige Multimedia- und Helligkeitstasten-Aktionen ein (Lautstärke, Wiedergabe/Pause, vor/zurück, Helligkeit hoch/runter).
+* **Installierte Programme starten**: Klicken Sie neben dem Befehlsfeld auf **App…**, um aus einer durchsuchbaren Liste ein installiertes Programm auszuwählen. Der Startbefehl wird automatisch eingetragen und ein passendes Icon (aus Ihrem Icon-Thema) der Taste zugewiesen.
+* **Dunkles Design**: Schalten Sie über **View → Dark Mode** ein dunkles Oberflächendesign ein. Ihre Auswahl wird zwischen Sitzungen gespeichert.
+* **Seiten-Navigationstasten**: Neben *Switch Page* verwandeln die Tasten **◀ Prev Page** / **Next Page ▶** die ausgewählte Taste in eine relative Seitennavigationstaste (mit Umlauf) und weisen automatisch ein vorgefertigtes Pfeil-Icon zu.
+* **Beispiel-Icons**: Über die Schaltfläche **Icons…** stehen fertige Tastenbilder bereit: mitgelieferte Sätze (Medien, Lautstärke, Helligkeit, Web, System); die echten, farbigen Icons Ihrer installierten Browser (Firefox, Chrome, Chromium, Edge, Vivaldi, Brave), ersatzweise eingefärbte Font-Awesome-Markensymbole; und – falls Font Awesome installiert ist – große Kategorien *Font Awesome* (Free Solid) und *Font Awesome Brands*. Der Dialog bietet eine Suche und eine optionale Einfärbung für einfarbige Icons. Browser- und Font-Awesome-Icons werden aus den bereits auf Ihrem System vorhandenen Schriften/Themen erzeugt.
 * **Tasten-Seiten**: streamdeck_ui bietet mehrere Seiten von Tasten mit dynamischer Einstellung von Tasten zum Umschalten zwischen ihnen.
 * **Automatisches Wiederverbinden**: Das Gerät wird automatisch und problemlos wieder verbunden, falls das Gerät ab- und wieder angesteckt wurde.
 * **Import/Export**: Bietet das Abspeichern und Wiederherstellen ganzer Stream Deck Konfigurationen.
+* **Hintergrund-Daemon**: Mit `streamdeck --daemon` (oder `-d`) löst sich das Programm vom Terminal und das Stream Deck funktioniert weiter, ohne dass das Konfigurationsfenster geöffnet bleiben muss. Beenden mit `streamdeck --daemon-kill`, Status prüfen mit `streamdeck --daemon-status`.
+* **Läuft unter systemd**: Läuft automatisch im Hintergrund als systemd --user Service.
 
 Die Kommunikation mit dem Streamdeck erfolgt durch die [Python Elgato Stream Deck Library](https://github.com/abcminiuser/python-elgato-streamdeck#python-elgato-stream-deck-library).
 
@@ -42,6 +49,8 @@ Die Kommunikation mit dem Streamdeck erfolgt durch die [Python Elgato Stream Dec
 ### Vorgefertigte Skripte
 
 Es gibt fertige Skripte um streamdeck_ui auf [Debian/Ubuntu](scripts/ubuntu_install.sh) und [Fedora](scripts/fedora_install.sh) zu installieren.
+
+Um **dieses Quellverzeichnis** (distributionsunabhängig) zu installieren, führen Sie [`scripts/install.sh`](scripts/install.sh) aus. Das Skript installiert die udev-Regeln, richtet eine eigene virtuelle Umgebung ein, verknüpft die Befehle `streamdeck`/`streamdeckc` nach `~/.local/bin`, legt einen Anwendungsstarter an und installiert Shell-Vervollständigungen für fish, bash und zsh (für die installierten Shells). Mit `--enable-service` wird zusätzlich ein systemd-`--user`-Service installiert und aktiviert, der das Stream Deck beim Anmelden im Hintergrund startet. Mit [`scripts/uninstall.sh`](scripts/uninstall.sh) wird alles wieder entfernt (mit `--purge` wird auch Ihre Konfiguration gelöscht).
 
 ### Manuelle Installation
 

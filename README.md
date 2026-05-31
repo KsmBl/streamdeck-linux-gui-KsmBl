@@ -36,10 +36,11 @@ All credit to the orignal authors, and the many contributors to the project.
 * **Brightness Control**: Supports controlling the brightness from both the configuration UI and buttons on the device itself.
 * **Configurable Button Display**: Icons + Text, Icon Only, and Text Only configurable per button on the Stream Deck.
 * **Multi-Action Support**: Run commands, write text and press hotkey combinations at the press of a single button on your Stream Deck.
+* **Media & Brightness Keys**: A **Media…** menu next to *Press Keys* inserts ready-made multimedia and brightness key actions (volume, play/pause, next/previous, brightness up/down).
 * **Launch Installed Applications**: Click **App…** next to the Command field to pick an installed application from a searchable list. The launch command is filled in for you and a fitting icon (from your icon theme) is applied to the button automatically.
 * **Dark Mode**: Toggle a dark interface theme from **View → Dark Mode**. Your choice is remembered between sessions.
 * **Page Navigation Keys**: Next to *Switch Page*, the **◀ Prev Page** / **Next Page ▶** buttons turn the selected key into a relative page navigation key (with wrap-around) and apply a premade arrow icon automatically.
-* **Sample Icons**: An **Icons…** button offers ready-made button images: bundled sets (media, volume, brightness, web, system); your installed browsers' real, colourful icons (Firefox, Chrome, Chromium, Edge, Vivaldi, Brave), falling back to colourised Font Awesome brand glyphs; and — when Font Awesome is installed — large *Font Awesome* (Free Solid) and *Font Awesome Brands* categories. Browser and Font Awesome icons are rendered from the fonts/themes already on your system.
+* **Sample Icons**: An **Icons…** button offers ready-made button images: bundled sets (media, volume, brightness, web, system); your installed browsers' real, colourful icons (Firefox, Chrome, Chromium, Edge, Vivaldi, Brave), falling back to colourised Font Awesome brand glyphs; and — when Font Awesome is installed — large *Font Awesome* (Free Solid) and *Font Awesome Brands* categories. The picker has a search box and an optional colour tint for monochrome icons. Browser and Font Awesome icons are rendered from the fonts/themes already on your system.
 * **Button Pages**: streamdeck_ui supports multiple pages of buttons and dynamically setting up buttons to switch between those pages.
 * **Auto Reconnect**: Automatically and gracefully reconnects, in the case the device is unplugged and replugged in.
 * **Import/Export**: Supports saving and restoring Stream Deck configuration.
@@ -48,7 +49,7 @@ All credit to the orignal authors, and the many contributors to the project.
 * **Auto Dim**: Configure the Stream Deck to automatically dim the display after a period of time. A button press wakes it up again.
 * **Animated icons**: Use an animated gif to liven things up a bit.
 * **Runs under systemd**: Run automatically in the background as a systemd --user service.
-* **Background Daemon**: Start with `streamdeck --daemon` (or `-d`) to detach from the terminal and keep the Stream Deck working without the configuration window open. Stop it again with `streamdeck --daemon-kill`.
+* **Background Daemon**: Start with `streamdeck --daemon` (or `-d`) to detach from the terminal and keep the Stream Deck working without the configuration window open. Stop it again with `streamdeck --daemon-kill`, or check it with `streamdeck --daemon-status`.
 * **Stream Deck Pedal**: Supports actions when pressing pedals.
 
 # Documentation
@@ -74,7 +75,7 @@ Once you're up and running, consider installing a [systemd service](docs/install
 
 There are scripts for setting up streamdeck_ui on [Debian/Ubuntu](scripts/ubuntu_install.sh) and [Fedora](scripts/fedora_install.sh).
 
-To install **this source checkout** (distro independent), run [`scripts/install.sh`](scripts/install.sh). It installs the udev rules, sets up an isolated virtual environment, links the `streamdeck`/`streamdeckc` commands into `~/.local/bin`, adds an application launcher, and (if `fish` is installed) installs fish shell completions. Remove everything again with [`scripts/uninstall.sh`](scripts/uninstall.sh) (pass `--purge` to also delete your configuration).
+To install **this source checkout** (distro independent), run [`scripts/install.sh`](scripts/install.sh). It installs the udev rules, sets up an isolated virtual environment, links the `streamdeck`/`streamdeckc` commands into `~/.local/bin`, adds an application launcher, and installs shell completions for fish, bash and zsh (for the shells you have installed). Pass `--enable-service` to also install and enable a systemd `--user` service that runs the Stream Deck in the background on login. Remove everything again with [`scripts/uninstall.sh`](scripts/uninstall.sh) (pass `--purge` to also delete your configuration).
 
 ## Updating Documentation
 
