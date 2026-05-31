@@ -62,7 +62,11 @@ from streamdeck_ui.modules.applications import (
     resolve_icon_to_file,
 )
 from streamdeck_ui.modules.daemon import daemonize, kill_daemon, remove_pid_file, write_pid_file
-from streamdeck_ui.modules.font_icons import build_browser_icons, build_font_awesome_icons
+from streamdeck_ui.modules.font_icons import (
+    build_browser_icons,
+    build_font_awesome_brand_icons,
+    build_font_awesome_icons,
+)
 from streamdeck_ui.modules.fonts import DEFAULT_FONT_FAMILY, FONTS_DICT, find_font_info
 from streamdeck_ui.modules.keyboard import KeyPressAutoComplete, keyboard_press_keys, keyboard_write
 from streamdeck_ui.modules.sample_icons import list_sample_icons
@@ -1022,6 +1026,9 @@ def show_sample_icon_picker() -> None:
     font_awesome = build_font_awesome_icons()
     if font_awesome:
         categories["Font Awesome"] = font_awesome
+    font_awesome_brands = build_font_awesome_brand_icons()
+    if font_awesome_brands:
+        categories["Font Awesome Brands"] = font_awesome_brands
 
     if not categories:
         QMessageBox.information(main_window, "No sample icons", "No sample icons were found.")

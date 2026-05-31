@@ -54,6 +54,17 @@ def test_build_font_awesome_icons_without_font():
         assert font_icons.build_font_awesome_icons("/tmp/sd-fonticons-test") == []
 
 
+def test_build_font_awesome_brand_icons_without_font():
+    with patch.object(font_icons, "find_font_awesome_fonts", return_value={"solid": None, "brands": None}):
+        assert font_icons.build_font_awesome_brand_icons("/tmp/sd-fonticons-test") == []
+
+
+def test_curated_sets_are_substantial():
+    # The "big curated set" should be well over the original handful.
+    assert len(font_icons.FONT_AWESOME_SOLID) > 100
+    assert len(font_icons.FONT_AWESOME_BRANDS) > 20
+
+
 def test_build_browser_icons_prefers_system_theme(tmp_path):
     def fake_theme(name):
         return "/themes/firefox.png" if name == "firefox" else None
