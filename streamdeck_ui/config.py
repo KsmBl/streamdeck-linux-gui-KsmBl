@@ -24,6 +24,26 @@ CONFIG_FILE_PREVIOUS_VERSION = 1
 CONFIG_FILE_SUPPORTED_VERSIONS = [CONFIG_FILE_VERSION, CONFIG_FILE_PREVIOUS_VERSION]
 WARNING_ICON = os.path.join(PROJECT_PATH, "icons", "warning_icon_button.png")
 
+# Premade icons for the page navigation keys.
+NEXT_PAGE_ICON = os.path.join(PROJECT_PATH, "icons", "next_page.png")
+PREVIOUS_PAGE_ICON = os.path.join(PROJECT_PATH, "icons", "previous_page.png")
+
+# Sentinel values stored in a button's "switch_page" attribute to request
+# navigation relative to the current page (with wrap-around), as opposed to a
+# positive value which switches to that absolute (1-based) page number.
+SWITCH_PAGE_NEXT = -1
+SWITCH_PAGE_PREVIOUS = -2
+# Where rendered application icons (resolved from the icon theme) are cached so
+# they can be used as button images.
+APP_ICON_CACHE_DIR = os.environ.get(
+    "STREAMDECK_UI_ICON_CACHE",
+    os.path.join(
+        os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
+        "streamdeck_ui",
+        "app_icons",
+    ),
+)
+
 
 def config_file_need_migration(config_file_path: str) -> bool:
     """Check if the config file need to be updated"""

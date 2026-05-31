@@ -36,6 +36,9 @@ All credit to the orignal authors, and the many contributors to the project.
 * **Brightness Control**: Supports controlling the brightness from both the configuration UI and buttons on the device itself.
 * **Configurable Button Display**: Icons + Text, Icon Only, and Text Only configurable per button on the Stream Deck.
 * **Multi-Action Support**: Run commands, write text and press hotkey combinations at the press of a single button on your Stream Deck.
+* **Launch Installed Applications**: Click **App…** next to the Command field to pick an installed application from a searchable list. The launch command is filled in for you and a fitting icon (from your icon theme) is applied to the button automatically.
+* **Dark Mode**: Toggle a dark interface theme from **View → Dark Mode**. Your choice is remembered between sessions.
+* **Page Navigation Keys**: Next to *Switch Page*, the **◀ Prev Page** / **Next Page ▶** buttons turn the selected key into a relative page navigation key (with wrap-around) and apply a premade arrow icon automatically.
 * **Button Pages**: streamdeck_ui supports multiple pages of buttons and dynamically setting up buttons to switch between those pages.
 * **Auto Reconnect**: Automatically and gracefully reconnects, in the case the device is unplugged and replugged in.
 * **Import/Export**: Supports saving and restoring Stream Deck configuration.

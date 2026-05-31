@@ -13,11 +13,17 @@ from PySide6.QtCore import QMimeData, QSettings, QSignalBlocker, QSize, Qt, QTim
 from PySide6.QtGui import QAction, QDesktopServices, QDrag, QFont, QIcon, QPalette
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QColorDialog,
     QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QGridLayout,
     QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QMenu,
     QMessageBox,
@@ -31,20 +37,32 @@ from PySide6.QtWidgets import (
 from streamdeck_ui.api import StreamDeckServer
 from streamdeck_ui.cli.server import CLIStreamDeckServer
 from streamdeck_ui.config import (
+    APP_ICON_CACHE_DIR,
     APP_LOGO,
     APP_NAME,
     DEFAULT_BACKGROUND_COLOR,
     DEFAULT_FONT_COLOR,
     DEFAULT_FONT_FALLBACK_PATH,
     DEFAULT_FONT_SIZE,
+    NEXT_PAGE_ICON,
+    PREVIOUS_PAGE_ICON,
     STATE_FILE,
     STATE_FILE_BACKUP,
+    SWITCH_PAGE_NEXT,
+    SWITCH_PAGE_PREVIOUS,
     config_file_need_migration,
     do_config_file_migration,
 )
 from streamdeck_ui.display.text_filter import is_a_valid_text_filter_font
+from streamdeck_ui.modules.applications import (
+    DesktopApplication,
+    list_desktop_applications,
+    load_application_qicon,
+    resolve_icon_to_file,
+)
 from streamdeck_ui.modules.fonts import DEFAULT_FONT_FAMILY, FONTS_DICT, find_font_info
 from streamdeck_ui.modules.keyboard import KeyPressAutoComplete, keyboard_press_keys, keyboard_write
+from streamdeck_ui.modules.theme import apply_theme, is_dark_mode_enabled, set_dark_mode_enabled
 from streamdeck_ui.modules.utils.timers import debounce
 from streamdeck_ui.semaphore import Semaphore, SemaphoreAcquireError
 from streamdeck_ui.ui_button import Ui_ButtonForm
@@ -221,13 +239,13 @@ def handle_keypress(ui, deck_id: str, key: int, state: bool) -> None:
                 show_tray_warning_message("Unable to change brightness.")
 
         if switch_page:
-            switch_page_index = switch_page - 1
-            if switch_page_index in api.get_pages(deck_id):
-                api.set_page(deck_id, switch_page_index)
+            target_page = _resolve_switch_page_target(deck_id, page, switch_page)
+            if target_page is not None:
+                api.set_page(deck_id, target_page)
                 if _deck() == deck_id:
-                    for page in range(ui.pages.count()):
-                        if ui.pages.widget(page).property("page_id") == switch_page_index:
-                            ui.pages.setCurrentIndex(page)
+                    for page_tab in range(ui.pages.count()):
+                        if ui.pages.widget(page_tab).property("page_id") == target_page:
+                            ui.pages.setCurrentIndex(page_tab)
                             break
             else:
                 show_tray_warning_message(
@@ -249,6 +267,28 @@ def handle_keypress(ui, deck_id: str, key: int, state: bool) -> None:
                 show_tray_warning_message(
                     f"Unable to perform switch button state, the button state {switch_state} does not exist in your current settings"  # noqa: E713
                 )
+
+
+def _resolve_switch_page_target(deck_id: str, current_page: int, switch_page: int) -> Optional[int]:
+    """Resolves a button's switch_page value to a concrete target page id.
+
+    A positive value is an absolute (1-based) page number. The sentinel values
+    SWITCH_PAGE_NEXT / SWITCH_PAGE_PREVIOUS navigate relative to the current
+    page, wrapping around at the ends. Returns None if the target does not
+    exist.
+    """
+    pages = api.get_pages(deck_id)
+    if not pages:
+        return None
+
+    if switch_page in (SWITCH_PAGE_NEXT, SWITCH_PAGE_PREVIOUS):
+        if current_page not in pages:
+            return None
+        step = 1 if switch_page == SWITCH_PAGE_NEXT else -1
+        return pages[(pages.index(current_page) + step) % len(pages)]
+
+    target_page = switch_page - 1
+    return target_page if target_page in pages else None
 
 
 def _deck() -> Optional[str]:
@@ -621,6 +661,7 @@ def build_button_state_form(tab) -> None:
     # connect signals
     tab_ui.text.textChanged.connect(partial(debounced_update_button_text, tab_ui))
     tab_ui.command.textChanged.connect(partial(debounced_update_button_attribute, "command"))
+    tab_ui.select_application.clicked.connect(partial(show_application_picker, tab_ui))
     tab_ui.keys.textChanged.connect(partial(debounced_update_button_attribute, "keys"))
     tab_ui.write.textChanged.connect(lambda: debounced_update_button_attribute("write", tab_ui.write.toPlainText()))
     tab_ui.change_brightness.valueChanged.connect(partial(update_button_attribute, "change_brightness"))
@@ -630,6 +671,8 @@ def build_button_state_form(tab) -> None:
     tab_ui.text_color.clicked.connect(partial(show_button_state_font_color_dialog, tab_ui))
     tab_ui.background_color.clicked.connect(partial(show_button_state_background_color_dialog, tab_ui))
     tab_ui.switch_page.valueChanged.connect(partial(update_button_attribute, "switch_page"))
+    tab_ui.set_next_page.clicked.connect(partial(configure_page_navigation, tab_ui, "next"))
+    tab_ui.set_previous_page.clicked.connect(partial(configure_page_navigation, tab_ui, "previous"))
     tab_ui.switch_state.valueChanged.connect(partial(update_button_attribute, "switch_state"))
     tab_ui.add_image.clicked.connect(partial(show_button_state_image_dialog))
     tab_ui.remove_image.clicked.connect(show_button_state_remove_image_dialog)
@@ -640,6 +683,7 @@ def build_button_state_form(tab) -> None:
 def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
     ui.text.setEnabled(enabled)
     ui.command.setEnabled(enabled)
+    ui.select_application.setEnabled(enabled)
     ui.keys.setEnabled(enabled)
     ui.text_font.setEnabled(enabled)
     ui.text_font_style.setEnabled(enabled)
@@ -647,6 +691,8 @@ def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
     ui.write.setEnabled(enabled)
     ui.change_brightness.setEnabled(enabled)
     ui.switch_page.setEnabled(enabled)
+    ui.set_next_page.setEnabled(enabled)
+    ui.set_previous_page.setEnabled(enabled)
     ui.switch_state.setEnabled(enabled)
     ui.add_image.setEnabled(enabled)
     ui.remove_image.setEnabled(enabled)
@@ -763,6 +809,151 @@ def show_button_state_remove_image_dialog() -> None:
         button = confirm.exec()
         if button == QMessageBox.StandardButton.Yes:
             update_displayed_button_attribute("icon", "")
+
+
+class ApplicationPicker(QDialog):
+    """A searchable dialog that lists installed applications so the user can
+    map one to a button without knowing its launch command. The selected
+    application's icon is shown so the user can choose a fitting icon for it."""
+
+    def __init__(self, parent, applications: List[DesktopApplication]):
+        super().__init__(parent)
+        self.setWindowTitle("Select Application")
+        self.resize(420, 520)
+        self._applications = applications
+
+        layout = QVBoxLayout(self)
+
+        self.search = QLineEdit(self)
+        self.search.setPlaceholderText("Search applications...")
+        self.search.setClearButtonEnabled(True)
+        layout.addWidget(self.search)
+
+        self.list = QListWidget(self)
+        self.list.setIconSize(QSize(32, 32))
+        layout.addWidget(self.list)
+
+        self.use_icon = QCheckBox("Use the application's icon for this button", self)
+        self.use_icon.setChecked(True)
+        layout.addWidget(self.use_icon)
+
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
+        )
+        layout.addWidget(self.button_box)
+
+        for application in applications:
+            item = QListWidgetItem(application.name)
+            item.setData(Qt.ItemDataRole.UserRole, application)
+            icon = load_application_qicon(application.icon_name)
+            if not icon.isNull():
+                item.setIcon(icon)
+            item.setToolTip(application.command)
+            self.list.addItem(item)
+
+        if self.list.count():
+            self.list.setCurrentRow(0)
+
+        self.search.textChanged.connect(self._filter)
+        self.list.itemDoubleClicked.connect(lambda _item: self.accept())
+        self.list.itemSelectionChanged.connect(self._update_ok_enabled)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        self._update_ok_enabled()
+
+    def _filter(self, text: str) -> None:
+        needle = text.strip().lower()
+        first_visible = None
+        for row in range(self.list.count()):
+            item = self.list.item(row)
+            application = item.data(Qt.ItemDataRole.UserRole)
+            matches = needle in application.name.lower() or needle in application.command.lower()
+            item.setHidden(not matches)
+            if matches and first_visible is None:
+                first_visible = item
+        # Keep a sensible selection as the user types
+        if self.list.currentItem() is None or self.list.currentItem().isHidden():
+            if first_visible is not None:
+                self.list.setCurrentItem(first_visible)
+        self._update_ok_enabled()
+
+    def _update_ok_enabled(self) -> None:
+        current = self.list.currentItem()
+        enabled = current is not None and not current.isHidden()
+        self.button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(enabled)
+
+    def selected_application(self) -> Optional[DesktopApplication]:
+        item = self.list.currentItem()
+        if item is None:
+            return None
+        return item.data(Qt.ItemDataRole.UserRole)
+
+
+def show_application_picker(ui: Ui_ButtonForm) -> None:
+    """Lets the user pick an installed application. The button command is set to
+    the application's launch command and, if requested, the button icon is set
+    to a fitting icon resolved from the application."""
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+
+    if deck_id is None or page_id is None or button_id is None:
+        return
+
+    applications = list_desktop_applications()
+    if not applications:
+        QMessageBox.information(
+            main_window,
+            "No applications found",
+            "No installed applications could be found on this system.",
+        )
+        return
+
+    picker = ApplicationPicker(main_window, applications)
+    if not picker.exec():
+        return
+
+    application = picker.selected_application()
+    if application is None:
+        return
+
+    # Update the field for display, but block its signals so we don't also
+    # schedule the debounced text handler. We store the value directly instead,
+    # which is immediate and predictable.
+    blocker = QSignalBlocker(ui.command)
+    ui.command.setText(application.command)
+    del blocker
+    update_button_attribute("command", application.command)
+
+    if picker.use_icon.isChecked():
+        icon_path = resolve_icon_to_file(application.icon_name, APP_ICON_CACHE_DIR)
+        if icon_path:
+            update_displayed_button_attribute("icon", icon_path)
+        else:
+            show_tray_warning_message(f"No icon could be found for {application.name}.")
+
+
+def configure_page_navigation(ui: Ui_ButtonForm, direction: str, _checked: bool = False) -> None:
+    """Turns the selected key into a page navigation key. It sets the relative
+    switch-page action and applies a premade arrow icon so the key works out of
+    the box."""
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+
+    if deck_id is None or page_id is None or button_id is None:
+        return
+
+    if direction == "next":
+        switch_page, icon = SWITCH_PAGE_NEXT, NEXT_PAGE_ICON
+    else:
+        switch_page, icon = SWITCH_PAGE_PREVIOUS, PREVIOUS_PAGE_ICON
+
+    # Clear any absolute page number shown in the spinbox first (this fires the
+    # valueChanged signal and stores 0), then store the relative sentinel.
+    ui.switch_page.setValue(0)
+    update_button_attribute("switch_page", switch_page)
+    update_displayed_button_attribute("icon", icon)
 
 
 def update_align_text_vertical() -> None:
@@ -1193,6 +1384,15 @@ def toggle_dim_all() -> None:
     api.toggle_dimmers()
 
 
+def toggle_dark_mode(checked: bool) -> None:
+    """Applies and persists the dark mode preference."""
+    app = QApplication.instance()
+    if app is not None:
+        apply_theme(app, checked)
+    if main_window is not None:
+        set_dark_mode_enabled(main_window.settings, checked)
+
+
 def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     """Creates the main application window and configures slots and signals"""
     global main_window
@@ -1213,6 +1413,8 @@ def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     ui.actionAbout.triggered.connect(main_window.about_dialog)
     ui.actionDocs.triggered.connect(browse_documentation)
     ui.actionGithub.triggered.connect(browse_github)
+    ui.actionDarkMode.setChecked(is_dark_mode_enabled(main_window.settings))
+    ui.actionDarkMode.toggled.connect(toggle_dark_mode)
     ui.settingsButton.setEnabled(False)
     ui.button_states.clear()
     build_button_state_pages()
@@ -1376,6 +1578,12 @@ def start(_exit: bool = False) -> None:
             app.setApplicationVersion(app_version)
             logo = QIcon(APP_LOGO)
             app.setWindowIcon(logo)
+
+            # Apply the saved light/dark theme before building the window so it
+            # is rendered with the correct palette from the start.
+            startup_settings = QSettings("streamdeck-ui", "streamdeck-ui")
+            apply_theme(app, is_dark_mode_enabled(startup_settings))
+
             main_window = create_main_window(api, app)
             create_tray(logo, app)
 

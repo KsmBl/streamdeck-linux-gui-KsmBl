@@ -1,0 +1,33 @@
+import pytest
+from PySide6.QtGui import QPalette
+from PySide6.QtWidgets import QApplication
+
+from streamdeck_ui import gui
+
+
+@pytest.mark.serial
+def test_dark_mode_action_present(api_and_window):
+    """The View menu exposes a checkable Dark Mode action."""
+    main_window, _api = api_and_window
+    assert main_window.ui.menuView.title() == "View"
+    assert main_window.ui.actionDarkMode.isCheckable()
+
+
+@pytest.mark.serial
+def test_toggle_dark_mode_applies_and_persists(api_and_window, mocker):
+    """Toggling the action applies a dark palette and persists the preference."""
+    main_window, _api = api_and_window
+
+    # Avoid writing to the real user QSettings during the test.
+    persist_spy = mocker.patch.object(gui, "set_dark_mode_enabled")
+
+    # Establish a deterministic baseline (the saved preference may start it on).
+    main_window.ui.actionDarkMode.setChecked(False)
+
+    main_window.ui.actionDarkMode.setChecked(True)
+    dark_window = QApplication.instance().palette().color(QPalette.ColorRole.Window)
+    assert dark_window.lightness() < 128
+    persist_spy.assert_called_with(main_window.settings, True)
+
+    main_window.ui.actionDarkMode.setChecked(False)
+    persist_spy.assert_called_with(main_window.settings, False)

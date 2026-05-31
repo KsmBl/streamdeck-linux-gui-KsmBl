@@ -1118,7 +1118,21 @@
     </widget>
    </item>
    <item row="5" column="1">
-    <widget class="QLineEdit" name="command"/>
+    <layout class="QHBoxLayout" name="horizontalLayout_command">
+     <item>
+      <widget class="QLineEdit" name="command"/>
+     </item>
+     <item>
+      <widget class="QPushButton" name="select_application">
+       <property name="toolTip">
+        <string>Pick an installed application to set the command and icon</string>
+       </property>
+       <property name="text">
+        <string>App…</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item row="7" column="0">
     <widget class="QLabel" name="label_5">
@@ -1138,17 +1152,41 @@
     </widget>
    </item>
    <item row="8" column="1">
-    <widget class="QSpinBox" name="switch_page">
-     <property name="minimum">
-      <number>0</number>
-     </property>
-     <property name="maximum">
-      <number>999999999</number>
-     </property>
-     <property name="value">
-      <number>0</number>
-     </property>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout_switch_page">
+     <item>
+      <widget class="QSpinBox" name="switch_page">
+       <property name="minimum">
+        <number>0</number>
+       </property>
+       <property name="maximum">
+        <number>999999999</number>
+       </property>
+       <property name="value">
+        <number>0</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="set_previous_page">
+       <property name="toolTip">
+        <string>Turn this key into a 'previous page' key (sets a premade icon)</string>
+       </property>
+       <property name="text">
+        <string>◀ Prev Page</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="set_next_page">
+       <property name="toolTip">
+        <string>Turn this key into a 'next page' key (sets a premade icon)</string>
+       </property>
+       <property name="text">
+        <string>Next Page ▶</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item row="9" column="0">
     <widget class="QLabel" name="label_10">

@@ -294,10 +294,20 @@ class Ui_ButtonForm(object):
 
         self.formLayout.setWidget(5, QFormLayout.LabelRole, self.label_3)
 
+        self.horizontalLayout_command = QHBoxLayout()
+        self.horizontalLayout_command.setObjectName(u"horizontalLayout_command")
         self.command = QLineEdit(ButtonForm)
         self.command.setObjectName(u"command")
 
-        self.formLayout.setWidget(5, QFormLayout.FieldRole, self.command)
+        self.horizontalLayout_command.addWidget(self.command)
+
+        self.select_application = QPushButton(ButtonForm)
+        self.select_application.setObjectName(u"select_application")
+
+        self.horizontalLayout_command.addWidget(self.select_application)
+
+
+        self.formLayout.setLayout(5, QFormLayout.FieldRole, self.horizontalLayout_command)
 
         self.label_5 = QLabel(ButtonForm)
         self.label_5.setObjectName(u"label_5")
@@ -314,13 +324,28 @@ class Ui_ButtonForm(object):
 
         self.formLayout.setWidget(8, QFormLayout.LabelRole, self.label_8)
 
+        self.horizontalLayout_switch_page = QHBoxLayout()
+        self.horizontalLayout_switch_page.setObjectName(u"horizontalLayout_switch_page")
         self.switch_page = QSpinBox(ButtonForm)
         self.switch_page.setObjectName(u"switch_page")
         self.switch_page.setMinimum(0)
         self.switch_page.setMaximum(999999999)
         self.switch_page.setValue(0)
 
-        self.formLayout.setWidget(8, QFormLayout.FieldRole, self.switch_page)
+        self.horizontalLayout_switch_page.addWidget(self.switch_page)
+
+        self.set_previous_page = QPushButton(ButtonForm)
+        self.set_previous_page.setObjectName(u"set_previous_page")
+
+        self.horizontalLayout_switch_page.addWidget(self.set_previous_page)
+
+        self.set_next_page = QPushButton(ButtonForm)
+        self.set_next_page.setObjectName(u"set_next_page")
+
+        self.horizontalLayout_switch_page.addWidget(self.set_next_page)
+
+
+        self.formLayout.setLayout(8, QFormLayout.FieldRole, self.horizontalLayout_switch_page)
 
         self.label_10 = QLabel(ButtonForm)
         self.label_10.setObjectName(u"label_10")
@@ -397,8 +422,20 @@ class Ui_ButtonForm(object):
 #endif // QT_CONFIG(tooltip)
         self.text_color.setText("")
         self.label_3.setText(QCoreApplication.translate("ButtonForm", u"Command:", None))
+#if QT_CONFIG(tooltip)
+        self.select_application.setToolTip(QCoreApplication.translate("ButtonForm", u"Pick an installed application to set the command and icon", None))
+#endif // QT_CONFIG(tooltip)
+        self.select_application.setText(QCoreApplication.translate("ButtonForm", u"App…", None))
         self.label_5.setText(QCoreApplication.translate("ButtonForm", u"Press Keys:", None))
         self.label_8.setText(QCoreApplication.translate("ButtonForm", u"Switch Page:", None))
+#if QT_CONFIG(tooltip)
+        self.set_previous_page.setToolTip(QCoreApplication.translate("ButtonForm", u"Turn this key into a 'previous page' key (sets a premade icon)", None))
+#endif // QT_CONFIG(tooltip)
+        self.set_previous_page.setText(QCoreApplication.translate("ButtonForm", u"◀ Prev Page", None))
+#if QT_CONFIG(tooltip)
+        self.set_next_page.setToolTip(QCoreApplication.translate("ButtonForm", u"Turn this key into a 'next page' key (sets a premade icon)", None))
+#endif // QT_CONFIG(tooltip)
+        self.set_next_page.setText(QCoreApplication.translate("ButtonForm", u"Next Page ▶", None))
         self.label_10.setText(QCoreApplication.translate("ButtonForm", u"Switch state", None))
         self.label_7.setText(QCoreApplication.translate("ButtonForm", u"Brightness +/-:", None))
         self.label_6.setText(QCoreApplication.translate("ButtonForm", u"Write Text:", None))
