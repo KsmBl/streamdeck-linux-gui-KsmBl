@@ -1687,10 +1687,12 @@ def stop_focus_watcher() -> None:
 
 
 def refresh_focus_tab_tooltips(ui, deck_id: str) -> None:
-    """Shows the bound application in each page tab's tooltip."""
+    """Shows the bound application in each page tab's label and tooltip."""
     for tab in range(ui.pages.count()):
         page_id = ui.pages.widget(tab).property("page_id")
+        base_label = _build_tab_label("Page", page_id)
         app = api.get_focus_app_for_page(deck_id, page_id)
+        ui.pages.setTabText(tab, f"{base_label}  ·  {app}" if app else base_label)
         ui.pages.setTabToolTip(tab, f"Shown when '{app}' is focused" if app else "")
 
 
