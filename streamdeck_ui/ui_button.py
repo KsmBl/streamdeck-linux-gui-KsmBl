@@ -41,6 +41,11 @@ class Ui_ButtonForm(object):
 
         self.horizontalLayout_2.addWidget(self.add_image)
 
+        self.sample_icons = QPushButton(ButtonForm)
+        self.sample_icons.setObjectName(u"sample_icons")
+
+        self.horizontalLayout_2.addWidget(self.sample_icons)
+
         self.remove_image = QPushButton(ButtonForm)
         self.remove_image.setObjectName(u"remove_image")
         sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
@@ -389,6 +394,10 @@ class Ui_ButtonForm(object):
         ButtonForm.setWindowTitle(QCoreApplication.translate("ButtonForm", u"Form", None))
         self.label.setText(QCoreApplication.translate("ButtonForm", u"Image:", None))
         self.add_image.setText(QCoreApplication.translate("ButtonForm", u"Image...", None))
+#if QT_CONFIG(tooltip)
+        self.sample_icons.setToolTip(QCoreApplication.translate("ButtonForm", u"Choose from the bundled sample icons", None))
+#endif // QT_CONFIG(tooltip)
+        self.sample_icons.setText(QCoreApplication.translate("ButtonForm", u"Icons…", None))
 #if QT_CONFIG(tooltip)
         self.remove_image.setToolTip(QCoreApplication.translate("ButtonForm", u"Remove the image from the button", None))
 #endif // QT_CONFIG(tooltip)

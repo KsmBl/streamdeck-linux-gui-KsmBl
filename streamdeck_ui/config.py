@@ -28,6 +28,10 @@ WARNING_ICON = os.path.join(PROJECT_PATH, "icons", "warning_icon_button.png")
 NEXT_PAGE_ICON = os.path.join(PROJECT_PATH, "icons", "next_page.png")
 PREVIOUS_PAGE_ICON = os.path.join(PROJECT_PATH, "icons", "previous_page.png")
 
+# Bundled sample icons (grouped into category sub-directories) offered as ready
+# made button images.
+SAMPLE_ICONS_DIR = os.path.join(PROJECT_PATH, "icons", "samples")
+
 # Sentinel values stored in a button's "switch_page" attribute to request
 # navigation relative to the current page (with wrap-around), as opposed to a
 # positive value which switches to that absolute (1-based) page number.

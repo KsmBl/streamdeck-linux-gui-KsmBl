@@ -34,6 +34,16 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="sample_icons">
+       <property name="toolTip">
+        <string>Choose from the bundled sample icons</string>
+       </property>
+       <property name="text">
+        <string>Icons…</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="remove_image">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Minimum">

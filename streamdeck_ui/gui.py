@@ -6,7 +6,7 @@ import signal
 import sys
 from functools import partial
 from subprocess import Popen  # nosec - Need to allow users to specify arbitrary commands
-from typing import Dict, List, Optional, Union, cast
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 from importlib_metadata import PackageNotFoundError, version
 from PySide6.QtCore import QMimeData, QSettings, QSignalBlocker, QSize, Qt, QTimer, QUrl
@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QColorDialog,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -60,8 +61,10 @@ from streamdeck_ui.modules.applications import (
     load_application_qicon,
     resolve_icon_to_file,
 )
+from streamdeck_ui.modules.daemon import daemonize
 from streamdeck_ui.modules.fonts import DEFAULT_FONT_FAMILY, FONTS_DICT, find_font_info
 from streamdeck_ui.modules.keyboard import KeyPressAutoComplete, keyboard_press_keys, keyboard_write
+from streamdeck_ui.modules.sample_icons import list_sample_icons
 from streamdeck_ui.modules.theme import apply_theme, is_dark_mode_enabled, set_dark_mode_enabled
 from streamdeck_ui.modules.utils.timers import debounce
 from streamdeck_ui.semaphore import Semaphore, SemaphoreAcquireError
@@ -675,6 +678,7 @@ def build_button_state_form(tab) -> None:
     tab_ui.set_previous_page.clicked.connect(partial(configure_page_navigation, tab_ui, "previous"))
     tab_ui.switch_state.valueChanged.connect(partial(update_button_attribute, "switch_state"))
     tab_ui.add_image.clicked.connect(partial(show_button_state_image_dialog))
+    tab_ui.sample_icons.clicked.connect(show_sample_icon_picker)
     tab_ui.remove_image.clicked.connect(show_button_state_remove_image_dialog)
     tab_ui.text_h_align.clicked.connect(partial(update_align_text_horizontal))
     tab_ui.text_v_align.clicked.connect(partial(update_align_text_vertical))
@@ -695,6 +699,7 @@ def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
     ui.set_previous_page.setEnabled(enabled)
     ui.switch_state.setEnabled(enabled)
     ui.add_image.setEnabled(enabled)
+    ui.sample_icons.setEnabled(enabled)
     ui.remove_image.setEnabled(enabled)
     ui.text_h_align.setEnabled(enabled)
     ui.text_v_align.setEnabled(enabled)
@@ -931,6 +936,93 @@ def show_application_picker(ui: Ui_ButtonForm) -> None:
             update_displayed_button_attribute("icon", icon_path)
         else:
             show_tray_warning_message(f"No icon could be found for {application.name}.")
+
+
+class SampleIconPicker(QDialog):
+    """A dialog that shows the bundled sample icons, grouped by category, so the
+    user can pick a ready made icon for a button."""
+
+    def __init__(self, parent, categories: Dict[str, List[Tuple[str, str]]]):
+        super().__init__(parent)
+        self.setWindowTitle("Sample Icons")
+        self.resize(460, 500)
+        self._categories = categories
+
+        layout = QVBoxLayout(self)
+
+        self.category = QComboBox(self)
+        self.category.addItem("All categories", userData=None)
+        for category in categories:
+            self.category.addItem(category.replace("_", " ").title(), userData=category)
+        layout.addWidget(self.category)
+
+        self.list = QListWidget(self)
+        self.list.setViewMode(QListWidget.ViewMode.IconMode)
+        self.list.setIconSize(QSize(64, 64))
+        self.list.setGridSize(QSize(96, 96))
+        self.list.setResizeMode(QListWidget.ResizeMode.Adjust)
+        self.list.setMovement(QListWidget.Movement.Static)
+        layout.addWidget(self.list)
+
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
+        )
+        layout.addWidget(self.button_box)
+
+        self._populate(None)
+
+        self.category.currentIndexChanged.connect(lambda: self._populate(self.category.currentData()))
+        self.list.itemDoubleClicked.connect(lambda _item: self.accept())
+        self.list.itemSelectionChanged.connect(self._update_ok_enabled)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+    def _populate(self, category: Optional[str]) -> None:
+        self.list.clear()
+        for name, icons in self._categories.items():
+            if category is not None and name != category:
+                continue
+            for display_name, path in icons:
+                item = QListWidgetItem(QIcon(path), display_name)
+                item.setData(Qt.ItemDataRole.UserRole, path)
+                item.setToolTip(f"{name.replace('_', ' ').title()}: {display_name}")
+                self.list.addItem(item)
+        if self.list.count():
+            self.list.setCurrentRow(0)
+        self._update_ok_enabled()
+
+    def _update_ok_enabled(self) -> None:
+        self.button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(self.list.currentItem() is not None)
+
+    def selected_icon_path(self) -> Optional[str]:
+        item = self.list.currentItem()
+        if item is None:
+            return None
+        return item.data(Qt.ItemDataRole.UserRole)
+
+
+def show_sample_icon_picker() -> None:
+    """Lets the user choose one of the bundled sample icons for the selected
+    button."""
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+
+    if deck_id is None or page_id is None or button_id is None:
+        return
+
+    categories = list_sample_icons()
+    if not categories:
+        QMessageBox.information(main_window, "No sample icons", "No bundled sample icons were found.")
+        return
+
+    picker = SampleIconPicker(main_window, categories)
+    if not picker.exec():
+        return
+
+    icon_path = picker.selected_icon_path()
+    if icon_path:
+        update_displayed_button_attribute("icon", icon_path)
 
 
 def configure_page_navigation(ui: Ui_ButtonForm, direction: str, _checked: bool = False) -> None:
@@ -1552,15 +1644,21 @@ def sigterm_handler(app, cli, signal_value, frame):
 
 def start(_exit: bool = False) -> None:
     global main_window
-    show_ui = True
     if "-h" in sys.argv or "--help" in sys.argv:
         print(f"Usage: {os.path.basename(sys.argv[0])}")
         print("Flags:")
         print("  -h, --help\tShow this message")
         print("  -n, --no-ui\tRun the program without showing a UI")
+        print("  -d, --daemon\tRun detached in the background (implies --no-ui)")
         return
-    elif "-n" in sys.argv or "--no-ui" in sys.argv:
+
+    show_ui = not ("-n" in sys.argv or "--no-ui" in sys.argv)
+
+    # A daemon runs detached from the terminal and never shows a window. We must
+    # detach before the Qt application is created.
+    if "-d" in sys.argv or "--daemon" in sys.argv:
         show_ui = False
+        daemonize()
 
     try:
         app_version = version("streamdeck-linux-gui")
