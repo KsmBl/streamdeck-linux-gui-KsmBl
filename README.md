@@ -48,7 +48,7 @@ All credit to the orignal authors, and the many contributors to the project.
 * **Auto Dim**: Configure the Stream Deck to automatically dim the display after a period of time. A button press wakes it up again.
 * **Animated icons**: Use an animated gif to liven things up a bit.
 * **Runs under systemd**: Run automatically in the background as a systemd --user service.
-* **Background Daemon**: Start with `streamdeck --daemon` (or `-d`) to detach from the terminal and keep the Stream Deck working without the configuration window open.
+* **Background Daemon**: Start with `streamdeck --daemon` (or `-d`) to detach from the terminal and keep the Stream Deck working without the configuration window open. Stop it again with `streamdeck --daemon-kill`.
 * **Stream Deck Pedal**: Supports actions when pressing pedals.
 
 # Documentation

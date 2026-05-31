@@ -61,7 +61,7 @@ from streamdeck_ui.modules.applications import (
     load_application_qicon,
     resolve_icon_to_file,
 )
-from streamdeck_ui.modules.daemon import daemonize
+from streamdeck_ui.modules.daemon import daemonize, kill_daemon, remove_pid_file, write_pid_file
 from streamdeck_ui.modules.fonts import DEFAULT_FONT_FAMILY, FONTS_DICT, find_font_info
 from streamdeck_ui.modules.keyboard import KeyPressAutoComplete, keyboard_press_keys, keyboard_write
 from streamdeck_ui.modules.sample_icons import list_sample_icons
@@ -1633,6 +1633,7 @@ def sigterm_handler(app, cli, signal_value, frame):
     api.stop()
     cli.stop()
     app.quit()
+    remove_pid_file()
     if signal_value == signal.SIGTERM:
         # Indicate to systemd that it was a clean termination
         print("Exiting normally")
@@ -1650,6 +1651,17 @@ def start(_exit: bool = False) -> None:
         print("  -h, --help\tShow this message")
         print("  -n, --no-ui\tRun the program without showing a UI")
         print("  -d, --daemon\tRun detached in the background (implies --no-ui)")
+        print("  --daemon-kill\tStop the running background instance and exit")
+        return
+
+    if "--daemon-kill" in sys.argv:
+        messages = {
+            "killed": "Stopped the running Stream Deck instance.",
+            "not-running": "No running Stream Deck instance was found.",
+            "stale": "Removed a stale PID file; no process was running.",
+            "error": "Failed to stop the running Stream Deck instance.",
+        }
+        print(messages[kill_daemon()])
         return
 
     show_ui = not ("-n" in sys.argv or "--no-ui" in sys.argv)
@@ -1668,6 +1680,9 @@ def start(_exit: bool = False) -> None:
     try:
         with Semaphore("/tmp/streamdeck_ui.lock"):  # nosec - this file is only observed with advisory lock
             # The semaphore was created, so this is the first instance
+
+            # Record our PID so the instance can be stopped later (--daemon-kill).
+            write_pid_file()
 
             # The QApplication object holds the Qt event loop, and you need one of these
             # for your application
@@ -1708,6 +1723,7 @@ def start(_exit: bool = False) -> None:
                 app.exec()
                 api.stop()
                 cli.stop()
+                remove_pid_file()
                 sys.exit()
 
     except SemaphoreAcquireError:

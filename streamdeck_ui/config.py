@@ -2,6 +2,7 @@
 
 import json
 import os
+import tempfile
 from typing import Dict
 
 from streamdeck_ui.model import ButtonMultiState, ButtonState, DeckState, DeckStateV1
@@ -19,6 +20,9 @@ DEFAULT_BACKGROUND_COLOR = "#000000"
 STATE_FILE = os.environ.get("STREAMDECK_UI_CONFIG", os.path.expanduser("~/.streamdeck_ui.json"))
 LOG_FILE = os.environ.get("STREAMDECK_UI_LOG_FILE", os.path.expanduser("~/.streamdeck_ui.log"))
 STATE_FILE_BACKUP = os.path.expanduser("~/.streamdeck_ui.json_old")
+# Records the PID of the running instance so a background daemon can be stopped
+# later with --daemon-kill.
+DAEMON_PID_FILE = os.environ.get("STREAMDECK_UI_PID_FILE", os.path.join(tempfile.gettempdir(), "streamdeck_ui.pid"))
 CONFIG_FILE_VERSION = 2
 CONFIG_FILE_PREVIOUS_VERSION = 1
 CONFIG_FILE_SUPPORTED_VERSIONS = [CONFIG_FILE_VERSION, CONFIG_FILE_PREVIOUS_VERSION]

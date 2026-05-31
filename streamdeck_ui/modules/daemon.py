@@ -6,9 +6,10 @@ process is fully detached from the controlling terminal.
 """
 
 import os
+import signal
 import sys
 
-from streamdeck_ui.config import LOG_FILE
+from streamdeck_ui.config import DAEMON_PID_FILE, LOG_FILE
 
 
 def daemonize(log_file: str = LOG_FILE) -> None:
@@ -48,3 +49,50 @@ def daemonize(log_file: str = LOG_FILE) -> None:
     os.dup2(log_fd, 1)
     os.dup2(log_fd, 2)
     os.close(log_fd)
+
+
+def write_pid_file(path: str = DAEMON_PID_FILE) -> None:
+    """Records the current process id so a running instance can be found and
+    stopped later (e.g. via ``--daemon-kill``)."""
+    try:
+        with open(path, "w") as pid_file:
+            pid_file.write(str(os.getpid()))
+    except OSError:
+        pass
+
+
+def remove_pid_file(path: str = DAEMON_PID_FILE) -> None:
+    """Removes the PID file if present."""
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _read_pid(path: str) -> "int | None":
+    try:
+        with open(path) as pid_file:
+            return int(pid_file.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def kill_daemon(path: str = DAEMON_PID_FILE) -> str:
+    """Stops a running Stream Deck instance recorded in the PID file.
+
+    Returns one of: ``"killed"`` (a SIGTERM was sent), ``"not-running"`` (no PID
+    file), ``"stale"`` (the recorded process no longer exists) or ``"error"``.
+    """
+    pid = _read_pid(path)
+    if pid is None:
+        return "not-running"
+
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        remove_pid_file(path)
+        return "stale"
+    except OSError:
+        return "error"
+
+    return "killed"
