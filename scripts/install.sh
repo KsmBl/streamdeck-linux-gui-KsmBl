@@ -6,13 +6,21 @@
 # `streamdeck` / `streamdeckc` commands into ~/.local/bin, installs the udev
 # rules required to talk to the device, and adds an application launcher entry.
 #
-# Usage: scripts/install.sh
+# Usage: scripts/install.sh [--enable-service]
+#
+#   --enable-service   Also install and start a systemd --user service that runs
+#                      the Stream Deck in the background on login.
 #
 # Environment overrides:
 #   PREFIX   Base prefix for executables / desktop files (default: ~/.local)
 #   PYTHON   Python interpreter to build the venv with     (default: python3)
 
 set -euo pipefail
+
+ENABLE_SERVICE=0
+if [ "${1:-}" = "--enable-service" ]; then
+    ENABLE_SERVICE=1
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -87,6 +95,43 @@ if command -v fish >/dev/null 2>&1 && [ -f "$FISH_COMPLETION_SRC" ]; then
     # fish only autoloads a command's completions when the command is on PATH,
     # so make sure the bin directory is on fish's PATH.
     fish -c "fish_add_path -g '$BIN_DIR'" >/dev/null 2>&1 || true
+fi
+
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+if command -v bash >/dev/null 2>&1 && [ -f "$REPO_ROOT/completions/streamdeck.bash" ]; then
+    echo ">>> Installing bash shell completions ..."
+    install -Dm644 "$REPO_ROOT/completions/streamdeck.bash" \
+        "$DATA_HOME/bash-completion/completions/streamdeck"
+fi
+if command -v zsh >/dev/null 2>&1 && [ -f "$REPO_ROOT/completions/_streamdeck" ]; then
+    echo ">>> Installing zsh shell completions ..."
+    install -Dm644 "$REPO_ROOT/completions/_streamdeck" "$DATA_HOME/zsh/site-functions/_streamdeck"
+    echo "    (ensure 'fpath+=$DATA_HOME/zsh/site-functions' is set before compinit in your ~/.zshrc)"
+fi
+
+# --- optional background service ------------------------------------------
+if [ "$ENABLE_SERVICE" -eq 1 ]; then
+    SERVICE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+    echo ">>> Installing and enabling the systemd --user service ..."
+    mkdir -p "$SERVICE_DIR"
+    cat > "$SERVICE_DIR/streamdeck.service" <<EOF
+[Unit]
+Description=A Linux compatible UI for the Elgato Stream Deck.
+
+[Service]
+Type=simple
+ExecStart=$BIN_DIR/streamdeck -n
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl --user daemon-reload || true
+        systemctl --user enable --now streamdeck.service || true
+    else
+        echo "    systemctl not found; service file written but not enabled."
+    fi
 fi
 
 echo

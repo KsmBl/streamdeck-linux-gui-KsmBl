@@ -1,0 +1,10 @@
+#compdef streamdeck
+# Zsh completion for the `streamdeck` command.
+# Installed by scripts/install.sh.
+
+_arguments -s \
+  '(-h --help)'{-h,--help}'[Show help and exit]' \
+  '(-n --no-ui)'{-n,--no-ui}'[Run without showing the configuration window]' \
+  '(-d --daemon)'{-d,--daemon}'[Run detached in the background (implies --no-ui)]' \
+  '--daemon-kill[Stop the running background instance and exit]' \
+  '--daemon-status[Report whether an instance is running and exit]'

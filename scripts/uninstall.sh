@@ -27,6 +27,8 @@ UDEV_RULES_DEST="/etc/udev/rules.d/60-streamdeck.rules"
 
 echo ">>> Stopping any running instance ..."
 systemctl --user disable --now streamdeck.service 2>/dev/null || true
+rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/streamdeck.service"
+systemctl --user daemon-reload 2>/dev/null || true
 pkill -f "$INSTALL_DIR/venv/bin/streamdeck" 2>/dev/null || true
 
 echo ">>> Removing executables and virtual environment ..."
@@ -38,8 +40,11 @@ rm -f "$DESKTOP_DIR/$APP_NAME.desktop"
 rm -f "$ICON_DIR/$APP_NAME.png"
 update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
 
-echo ">>> Removing fish shell completions ..."
+echo ">>> Removing shell completions ..."
 rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/streamdeck.fish"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+rm -f "$DATA_HOME/bash-completion/completions/streamdeck"
+rm -f "$DATA_HOME/zsh/site-functions/_streamdeck"
 if command -v fish >/dev/null 2>&1; then
     fish -c "set -q fish_user_paths; and set -U fish_user_paths (string match --invert -- '$BIN_DIR' \$fish_user_paths)" >/dev/null 2>&1 || true
 fi
