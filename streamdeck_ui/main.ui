@@ -356,6 +356,10 @@
      <string>View</string>
     </property>
     <addaction name="actionDarkMode"/>
+    <addaction name="separator"/>
+    <addaction name="actionFollowFocus"/>
+    <addaction name="actionAssignFocusPage"/>
+    <addaction name="actionClearFocusPage"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -407,6 +411,24 @@
    </property>
    <property name="text">
     <string>Dark Mode</string>
+   </property>
+  </action>
+  <action name="actionFollowFocus">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Follow Focused Application</string>
+   </property>
+  </action>
+  <action name="actionAssignFocusPage">
+   <property name="text">
+    <string>Assign Page to Focused App…</string>
+   </property>
+  </action>
+  <action name="actionClearFocusPage">
+   <property name="text">
+    <string>Clear Page's Focus App</string>
    </property>
   </action>
  </widget>

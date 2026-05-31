@@ -56,6 +56,10 @@ class DeckState:
     """Rotation of the StreamDeck display"""
     page: int = 0
     """Current displayed page in the StreamDeck"""
+    focus_follow: bool = False
+    """Whether to automatically switch pages based on the focused application"""
+    focus_pages: Dict[str, int] = field(default_factory=dict)
+    """Mapping of focused application id -> page to switch to when it is focused"""
 
 
 @dataclass

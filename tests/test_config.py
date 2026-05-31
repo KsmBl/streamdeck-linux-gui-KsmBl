@@ -43,6 +43,8 @@ TEST_CONFIG_STATE = {
         "brightness_dimmed": 0,
         "rotation": 0,
         "page": 0,
+        "focus_follow": False,
+        "focus_pages": {},
     }
 }
 TEST_CONFIG_STATE_V1 = {

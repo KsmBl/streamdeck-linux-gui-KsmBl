@@ -63,6 +63,7 @@ from streamdeck_ui.modules.applications import (
     resolve_icon_to_file,
 )
 from streamdeck_ui.modules.daemon import daemonize, kill_daemon, remove_pid_file, running_pid, write_pid_file
+from streamdeck_ui.modules.focus import FocusWatcher, get_focused_app
 from streamdeck_ui.modules.font_icons import (
     build_browser_icons,
     build_font_awesome_brand_icons,
@@ -95,6 +96,9 @@ selected_button: Optional[QToolButton] = None
 
 text_update_timer: Optional[QTimer] = None
 "Timer used to delay updates to the button text"
+
+focus_watcher: Optional[FocusWatcher] = None
+"Background watcher that switches pages based on the focused application"
 
 BUTTON_STYLE = """
     QToolButton {
@@ -1411,6 +1415,12 @@ def build_device(ui, _device_index=None) -> None:
             # Set the active page for this device
             ui.pages.setCurrentIndex(active_tab_index)
 
+            # Reflect this deck's focus-following state without re-triggering it.
+            ui.actionFollowFocus.blockSignals(True)
+            ui.actionFollowFocus.setChecked(api.get_focus_follow(deck_id))
+            ui.actionFollowFocus.blockSignals(False)
+            refresh_focus_tab_tooltips(ui, deck_id)
+
             # Draw the buttons for the active page
             redraw_buttons()
         else:
@@ -1599,6 +1609,112 @@ def toggle_dark_mode(checked: bool) -> None:
         set_dark_mode_enabled(main_window.settings, checked)
 
 
+def _switch_to_page(ui, deck_id: str, target_page: int) -> None:
+    """Switches a deck to the given page and reflects it in the UI when that
+    deck is the one currently shown."""
+    api.set_page(deck_id, target_page)
+    if _deck() == deck_id:
+        for tab in range(ui.pages.count()):
+            if ui.pages.widget(tab).property("page_id") == target_page:
+                ui.pages.setCurrentIndex(tab)
+                break
+
+
+def handle_focus_changed(ui, app: str) -> None:
+    """Switches each focus-following deck to the page mapped to the now-focused
+    application. Runs in the GUI thread (queued signal from the watcher)."""
+    for deck_id in list(api.decks_by_serial.keys()):
+        try:
+            if not api.get_focus_follow(deck_id):
+                continue
+            target_page = api.get_focus_pages(deck_id).get(app)
+            if target_page is None or target_page not in api.get_pages(deck_id):
+                continue
+            if api.get_page(deck_id) == target_page:
+                continue
+            api.reset_dimmer(deck_id)
+            _switch_to_page(ui, deck_id, target_page)
+        except Exception as error:  # noqa: BLE001 - a deck may detach mid-iteration
+            print(f"Could not switch page for the focused application: {error}")
+
+
+def update_focus_watcher(ui) -> None:
+    """Starts or stops the focus watcher depending on whether any attached deck
+    has focus following enabled."""
+    global focus_watcher
+    wanted = any(api.get_focus_follow(deck_id) for deck_id in api.decks_by_serial)
+
+    if wanted and focus_watcher is None:
+        focus_watcher = FocusWatcher()
+        focus_watcher.focus_changed.connect(partial(handle_focus_changed, ui))
+        focus_watcher.start()
+    elif not wanted and focus_watcher is not None:
+        focus_watcher.stop()
+        focus_watcher = None
+
+
+def stop_focus_watcher() -> None:
+    """Stops the focus watcher if it is running."""
+    global focus_watcher
+    if focus_watcher is not None:
+        focus_watcher.stop()
+        focus_watcher = None
+
+
+def refresh_focus_tab_tooltips(ui, deck_id: str) -> None:
+    """Shows the bound application in each page tab's tooltip."""
+    for tab in range(ui.pages.count()):
+        page_id = ui.pages.widget(tab).property("page_id")
+        app = api.get_focus_app_for_page(deck_id, page_id)
+        ui.pages.setTabToolTip(tab, f"Shown when '{app}' is focused" if app else "")
+
+
+def toggle_focus_follow(checked: bool) -> None:
+    """Enables or disables focus-following page switching for the current deck."""
+    deck_id = _deck()
+    if deck_id is None:
+        return
+    api.set_focus_follow(deck_id, checked)
+    update_focus_watcher(main_window.ui)
+
+
+def assign_focus_page() -> None:
+    """Maps the current page to the currently focused application."""
+    deck_id = _deck()
+    page_id = _page()
+    if deck_id is None or page_id is None:
+        return
+
+    app = get_focused_app()
+    if not app:
+        QMessageBox.information(
+            main_window,
+            "Focused application not detected",
+            "The focused application could not be detected on this system. This "
+            "feature works on X11, Sway and Hyprland; some Wayland compositors "
+            "(e.g. GNOME) do not expose the focused window to applications.",
+        )
+        return
+
+    api.set_focus_page(deck_id, app, page_id)
+    # Turn the feature on so the assignment takes effect immediately.
+    main_window.ui.actionFollowFocus.setChecked(True)
+    refresh_focus_tab_tooltips(main_window.ui, deck_id)
+    QMessageBox.information(
+        main_window, "Page assigned", f"This page will be shown automatically when '{app}' is focused."
+    )
+
+
+def clear_focus_page() -> None:
+    """Removes any focused-application mapping for the current page."""
+    deck_id = _deck()
+    page_id = _page()
+    if deck_id is None or page_id is None:
+        return
+    api.remove_focus_page(deck_id, page_id)
+    refresh_focus_tab_tooltips(main_window.ui, deck_id)
+
+
 def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     """Creates the main application window and configures slots and signals"""
     global main_window
@@ -1621,6 +1737,9 @@ def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     ui.actionGithub.triggered.connect(browse_github)
     ui.actionDarkMode.setChecked(is_dark_mode_enabled(main_window.settings))
     ui.actionDarkMode.toggled.connect(toggle_dark_mode)
+    ui.actionFollowFocus.toggled.connect(toggle_focus_follow)
+    ui.actionAssignFocusPage.triggered.connect(assign_focus_page)
+    ui.actionClearFocusPage.triggered.connect(clear_focus_page)
     ui.settingsButton.setEnabled(False)
     ui.button_states.clear()
     build_button_state_pages()
@@ -1712,6 +1831,7 @@ def streamdeck_attached(ui, deck: Dict):
     finally:
         blocker.unblock()
     build_device(ui)
+    update_focus_watcher(ui)
 
 
 def streamdeck_detached(ui, serial_number):
@@ -1725,6 +1845,7 @@ def streamdeck_detached(ui, serial_number):
         finally:
             blocker.unblock()
         build_device(ui)
+        update_focus_watcher(ui)
 
 
 def configure_signals(app: QApplication, cli: CLIStreamDeckServer):
@@ -1744,6 +1865,7 @@ def configure_signals(app: QApplication, cli: CLIStreamDeckServer):
 
 def sigterm_handler(app, cli, signal_value, frame):
     print("Received signal", signal_value, frame)
+    stop_focus_watcher()
     api.stop()
     cli.stop()
     app.quit()
@@ -1841,6 +1963,7 @@ def start(_exit: bool = False) -> None:
                 return
             else:
                 app.exec()
+                stop_focus_watcher()
                 api.stop()
                 cli.stop()
                 remove_pid_file()

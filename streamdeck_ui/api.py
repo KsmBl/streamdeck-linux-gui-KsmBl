@@ -636,6 +636,42 @@ class StreamDeckServer:
         # Wait for at least one cycle
         display_handler.synchronize()
 
+    def get_focus_follow(self, serial_number: str) -> bool:
+        """Returns whether the deck switches pages based on the focused application."""
+        return self.state[serial_number].focus_follow
+
+    def set_focus_follow(self, serial_number: str, enabled: bool) -> None:
+        """Enables or disables switching pages based on the focused application."""
+        if self.state[serial_number].focus_follow != enabled:
+            self.state[serial_number].focus_follow = enabled
+            self._save_state()
+
+    def get_focus_pages(self, serial_number: str) -> Dict[str, int]:
+        """Returns the mapping of focused application id -> page for the deck."""
+        return self.state[serial_number].focus_pages
+
+    def set_focus_page(self, serial_number: str, app: str, page: int) -> None:
+        """Maps a focused application id to the page to show when it is focused."""
+        if self.state[serial_number].focus_pages.get(app) != page:
+            self.state[serial_number].focus_pages[app] = page
+            self._save_state()
+
+    def remove_focus_page(self, serial_number: str, page: int) -> None:
+        """Removes any focus-application mappings that point at the given page."""
+        focus_pages = self.state[serial_number].focus_pages
+        removed = [app for app, mapped_page in focus_pages.items() if mapped_page == page]
+        for app in removed:
+            del focus_pages[app]
+        if removed:
+            self._save_state()
+
+    def get_focus_app_for_page(self, serial_number: str, page: int) -> Optional[str]:
+        """Returns the application id mapped to the given page, if any."""
+        for app, mapped_page in self.state[serial_number].focus_pages.items():
+            if mapped_page == page:
+                return app
+        return None
+
     def _update_streamdeck_filters(self, serial_number: str):
         """Updates the filters for all the StreamDeck buttons.
 

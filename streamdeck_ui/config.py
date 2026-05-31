@@ -149,6 +149,8 @@ def _to_deck_states(state: dict) -> Dict[str, DeckState]:
             brightness_dimmed=deck_state["brightness_dimmed"],
             rotation=deck_state["rotation"],
             page=deck_state["page"],
+            focus_follow=deck_state.get("focus_follow", False),
+            focus_pages={str(app): int(page) for app, page in deck_state.get("focus_pages", {}).items()},
         )
         for deck_id, deck_state in state.items()
     }
@@ -246,6 +248,8 @@ def _to_deck_config(state: Dict[str, DeckState]) -> dict:
             "brightness_dimmed": deck_state.brightness_dimmed,
             "rotation": deck_state.rotation,
             "page": deck_state.page,
+            "focus_follow": deck_state.focus_follow,
+            "focus_pages": deck_state.focus_pages,
         }
         for deck_id, deck_state in state.items()
     }
