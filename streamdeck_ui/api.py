@@ -403,6 +403,35 @@ class StreamDeckServer:
         display_handler = self.display_handlers[serial_number]
         display_handler.synchronize()
 
+    def get_button_multi_state(self, serial_number: str, page: int, button: int) -> ButtonMultiState:
+        """Returns a deep copy of a button's full multi-state (for copy/paste)."""
+        return deepcopy(self.state[serial_number].buttons[page][button])
+
+    def set_button_multi_state(self, serial_number: str, page: int, button: int, multi_state: ButtonMultiState) -> None:
+        """Replaces a button's full multi-state (used to paste a copied button)."""
+        self.state[serial_number].buttons[page][button] = deepcopy(multi_state)
+        self._save_state()
+        self._update_button_filters(serial_number, page, button)
+        self.display_handlers[serial_number].synchronize()
+
+    def clear_button(self, serial_number: str, page: int, button: int) -> None:
+        """Resets a button to its default (empty) state."""
+        self.state[serial_number].buttons[page][button] = ButtonMultiState(state=0, states={0: ButtonState()})
+        self._save_state()
+        self._update_button_filters(serial_number, page, button)
+        self.display_handlers[serial_number].synchronize()
+
+    def clone_page(self, serial_number: str, page: int) -> int:
+        """Creates a new page that is a copy of the given page. Returns the new
+        page index."""
+        new_page_index = self.add_new_page(serial_number)
+        self.state[serial_number].buttons[new_page_index] = deepcopy(self.state[serial_number].buttons[page])
+        self._save_state()
+        for button in self.state[serial_number].buttons[new_page_index]:
+            self._update_button_filters(serial_number, new_page_index, button)
+        self.display_handlers[serial_number].synchronize()
+        return new_page_index
+
     def set_button_text(self, deck_id: str, page: int, button: int, text: str) -> None:
         """Set the text associated with a button"""
         if self.get_button_text(deck_id, page, button) != text:

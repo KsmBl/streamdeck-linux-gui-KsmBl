@@ -10,12 +10,13 @@ from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 from importlib_metadata import PackageNotFoundError, version
 from PySide6.QtCore import QMimeData, QSettings, QSignalBlocker, QSize, Qt, QTimer, QUrl
-from PySide6.QtGui import QAction, QColor, QDesktopServices, QDrag, QFont, QIcon, QPalette
+from PySide6.QtGui import QAction, QColor, QDesktopServices, QDrag, QFont, QIcon, QKeySequence, QPalette, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QColorDialog,
     QComboBox,
+    QCompleter,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -72,7 +73,14 @@ from streamdeck_ui.modules.font_icons import (
     recolor_icon,
 )
 from streamdeck_ui.modules.fonts import DEFAULT_FONT_FAMILY, FONTS_DICT, find_font_info
-from streamdeck_ui.modules.keyboard import KeyPressAutoComplete, keyboard_press_keys, keyboard_write
+from streamdeck_ui.modules.keyboard import (
+    KEY_COMBO_MODIFIERS,
+    KeyPressAutoComplete,
+    get_valid_key_names,
+    keyboard_press_keys,
+    keyboard_write,
+    qt_key_to_evdev_name,
+)
 from streamdeck_ui.modules.sample_icons import list_sample_icons
 from streamdeck_ui.modules.theme import apply_theme, is_dark_mode_enabled, set_dark_mode_enabled
 from streamdeck_ui.modules.utils.timers import debounce
@@ -215,6 +223,23 @@ class DraggableButton(QToolButton):
 
     def dragLeaveEvent(self, e):  # noqa: N802 - Part of QT signature.
         self.setStyleSheet(BUTTON_STYLE)
+
+    def contextMenuEvent(self, e):  # noqa: N802 - Part of QT signature.
+        # Make this button the selected one so the actions target it.
+        siblings = self.parent().findChildren(DraggableButton)
+        self.setChecked(True)
+        button_clicked(self, siblings)
+
+        menu = QMenu(self)
+        copy_action = menu.addAction("Copy")
+        paste_action = menu.addAction("Paste")
+        menu.addSeparator()
+        clear_action = menu.addAction("Clear")
+        paste_action.setEnabled(_button_clipboard is not None)
+        copy_action.triggered.connect(copy_selected_button)
+        paste_action.triggered.connect(paste_selected_button)
+        clear_action.triggered.connect(clear_selected_button)
+        menu.exec(e.globalPos())
 
 
 def handle_keypress(ui, deck_id: str, key: int, state: bool) -> None:
@@ -401,6 +426,23 @@ def handle_new_page() -> None:
     main_window.ui.remove_page.setEnabled(True)
 
 
+def handle_clone_page() -> None:
+    """Creates a copy of the current page (all of its buttons) and switches to it."""
+    deck_id = _deck()
+    page_id = _page()
+    if deck_id is None or page_id is None:
+        return
+
+    new_page_index = api.clone_page(deck_id, page_id)
+    build_device(main_window.ui)
+
+    for page in range(main_window.ui.pages.count()):
+        if main_window.ui.pages.widget(page).property("page_id") == new_page_index:
+            main_window.ui.pages.setCurrentIndex(page)
+            break
+    main_window.ui.remove_page.setEnabled(True)
+
+
 def handle_delete_page_with_confirmation() -> None:
     confirm = QMessageBox(main_window)
     confirm.setWindowTitle("Delete Page")
@@ -571,6 +613,56 @@ def button_clicked(clicked_button, buttons) -> None:
     build_button_state_pages()
 
 
+# Holds a deep copy of a button's full multi-state config for copy/paste.
+_button_clipboard = None
+
+
+def copy_selected_button() -> None:
+    """Copies the currently selected button (all of its states) to the clipboard."""
+    global _button_clipboard
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+    if deck_id is None or page_id is None or button_id is None:
+        return
+    _button_clipboard = api.get_button_multi_state(deck_id, page_id, button_id)
+
+
+def paste_selected_button() -> None:
+    """Pastes a previously copied button over the currently selected one."""
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+    if deck_id is None or page_id is None or button_id is None or _button_clipboard is None:
+        return
+    api.set_button_multi_state(deck_id, page_id, button_id, _button_clipboard)
+    redraw_button(button_id)
+    build_button_state_pages()
+
+
+def clear_selected_button() -> None:
+    """Resets the currently selected button back to an empty state."""
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+    if deck_id is None or page_id is None or button_id is None:
+        return
+    api.clear_button(deck_id, page_id, button_id)
+    redraw_button(button_id)
+    build_button_state_pages()
+
+
+def test_selected_button() -> None:
+    """Runs the currently selected button's action as if the physical key was
+    pressed, so the user can verify it without touching the Stream Deck."""
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+    if deck_id is None or page_id is None or button_id is None:
+        return
+    handle_keypress(main_window.ui, deck_id, button_id, True)
+
+
 def build_button_state_pages():
     ui = main_window.ui
     blocker = QSignalBlocker(ui.button_states)
@@ -600,17 +692,22 @@ def build_button_state_pages():
                 if button_state_id == current_state:
                     active_tab_index = tab_index
         else:
-            # add text "No button selected"
+            # No button is selected: show a friendly placeholder instead of an
+            # empty, disabled form.
             page = QWidget()
-            page.setLayout(QVBoxLayout())
+            page_layout = QVBoxLayout(page)
             page.setProperty("deck_id", deck_id)
             page.setProperty("page_id", page_id)
             page.setProperty("button_id", button_id)
             page.setProperty("button_state_id", None)
+            placeholder = QLabel("Select a key above to configure it.", page)
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet("color: grey;")
+            page_layout.addStretch(1)
+            page_layout.addWidget(placeholder)
+            page_layout.addStretch(1)
             label = _build_tab_label("State", 0)
-            tab_index = ui.button_states.addTab(page, label)
-            page_tab = ui.button_states.widget(tab_index)
-            build_button_state_form(page_tab)
+            ui.button_states.addTab(page, label)
 
         some_state = button_id is not None and ui.button_states.count() > 0
         more_than_one_state = button_id is not None and ui.button_states.count() > 1
@@ -688,6 +785,7 @@ def build_button_state_form(tab) -> None:
     tab_ui.command.textChanged.connect(partial(debounced_update_button_attribute, "command"))
     tab_ui.select_application.clicked.connect(partial(show_application_picker, tab_ui))
     tab_ui.keys.textChanged.connect(partial(debounced_update_button_attribute, "keys"))
+    tab_ui.key_combo.clicked.connect(partial(show_key_combine_dialog, tab_ui))
     media_menu = QMenu(tab_ui.media_keys)
     for preset_label, preset_keys in MEDIA_KEY_PRESETS:
         media_menu.addAction(preset_label, partial(apply_media_preset, tab_ui, preset_keys))
@@ -709,6 +807,7 @@ def build_button_state_form(tab) -> None:
     tab_ui.remove_image.clicked.connect(show_button_state_remove_image_dialog)
     tab_ui.text_h_align.clicked.connect(partial(update_align_text_horizontal))
     tab_ui.text_v_align.clicked.connect(partial(update_align_text_vertical))
+    tab_ui.test_action.clicked.connect(test_selected_button)
 
 
 def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
@@ -716,6 +815,7 @@ def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
     ui.command.setEnabled(enabled)
     ui.select_application.setEnabled(enabled)
     ui.keys.setEnabled(enabled)
+    ui.key_combo.setEnabled(enabled)
     ui.media_keys.setEnabled(enabled)
     ui.text_font.setEnabled(enabled)
     ui.text_font_style.setEnabled(enabled)
@@ -732,6 +832,7 @@ def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
     ui.remove_image.setEnabled(enabled)
     ui.text_h_align.setEnabled(enabled)
     ui.text_v_align.setEnabled(enabled)
+    ui.test_action.setEnabled(enabled)
     ui.text_color.setEnabled(enabled)
     ui.background_color.setEnabled(enabled)
     # default black color looks like it's enabled even when it's not
@@ -1103,6 +1204,29 @@ class SampleIconPicker(QDialog):
         return self._color.name() if self.recolor.isChecked() else None
 
 
+_MAX_RECENT_ICONS = 12
+
+
+def _get_recent_icons() -> List[str]:
+    """Returns recently chosen sample-icon paths, most recent first, dropping
+    any that no longer exist on disk."""
+    if main_window is None:
+        return []
+    stored = main_window.settings.value("recent_icons", [])
+    if isinstance(stored, str):  # QSettings can collapse a single-item list
+        stored = [stored]
+    return [path for path in (stored or []) if os.path.exists(path)]
+
+
+def _add_recent_icon(path: str) -> None:
+    """Records a sample-icon path as recently used."""
+    if main_window is None:
+        return
+    recent = [existing for existing in _get_recent_icons() if existing != path]
+    recent.insert(0, path)
+    main_window.settings.setValue("recent_icons", recent[:_MAX_RECENT_ICONS])
+
+
 def show_sample_icon_picker() -> None:
     """Lets the user choose one of the bundled sample icons for the selected
     button."""
@@ -1131,16 +1255,177 @@ def show_sample_icon_picker() -> None:
         QMessageBox.information(main_window, "No sample icons", "No sample icons were found.")
         return
 
+    # Surface recently used icons as the first category for quick reuse.
+    recent_paths = _get_recent_icons()
+    if recent_paths:
+        recent_entries = [
+            (os.path.splitext(os.path.basename(path))[0].replace("_", " ").title(), path) for path in recent_paths
+        ]
+        categories = {"recent": recent_entries, **categories}
+
     picker = SampleIconPicker(main_window, categories)
     if not picker.exec():
         return
 
     icon_path = picker.selected_icon_path()
     if icon_path:
+        _add_recent_icon(icon_path)
         color = picker.selected_color()
         if color:
             icon_path = recolor_icon(icon_path, color)
         update_displayed_button_attribute("icon", icon_path)
+
+
+class KeyCombineDialog(QDialog):
+    """Builds a key combination for the Press Keys field so the user does not
+    need to know the textual key names. Modifiers are toggled with checkboxes,
+    the main key can be typed/picked, or the whole shortcut can be captured live
+    with the Record button."""
+
+    # Lone modifier presses we ignore while recording, waiting for a real key.
+    _LONE_MODIFIERS = (
+        Qt.Key.Key_Control,
+        Qt.Key.Key_Shift,
+        Qt.Key.Key_Alt,
+        Qt.Key.Key_AltGr,
+        Qt.Key.Key_Meta,
+        Qt.Key.Key_Super_L,
+        Qt.Key.Key_Super_R,
+    )
+
+    def __init__(self, parent, initial: str = ""):
+        super().__init__(parent)
+        self.setWindowTitle("Build Key Combination")
+        self.setMinimumWidth(360)
+        self._recording = False
+
+        layout = QVBoxLayout(self)
+
+        layout.addWidget(QLabel("Modifiers", self))
+        modifier_row = QHBoxLayout()
+        self._modifier_boxes: Dict[str, QCheckBox] = {}
+        for modifier in KEY_COMBO_MODIFIERS:
+            box = QCheckBox(modifier, self)
+            box.toggled.connect(self._update_preview)
+            self._modifier_boxes[modifier] = box
+            modifier_row.addWidget(box)
+        layout.addLayout(modifier_row)
+
+        layout.addWidget(QLabel("Key", self))
+        key_row = QHBoxLayout()
+        self.key_combo = QComboBox(self)
+        self.key_combo.setEditable(True)
+        self.key_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.key_combo.addItem("")
+        self.key_combo.addItems(get_valid_key_names())
+        completer = self.key_combo.completer()
+        if completer is not None:
+            completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        self.key_combo.editTextChanged.connect(self._update_preview)
+        key_row.addWidget(self.key_combo, 1)
+
+        self.record_button = QPushButton("Record", self)
+        self.record_button.setCheckable(True)
+        self.record_button.setToolTip("Capture a key combination by pressing it")
+        self.record_button.toggled.connect(self._toggle_recording)
+        key_row.addWidget(self.record_button)
+        layout.addLayout(key_row)
+
+        self.preview = QLabel(self)
+        layout.addWidget(self.preview)
+
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
+        )
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        layout.addWidget(self.button_box)
+
+        self._load_initial(initial)
+        self._update_preview()
+
+    def _load_initial(self, initial: str) -> None:
+        # Only the first section (before any ",") maps onto the builder.
+        first_section = initial.split(",")[0]
+        for part in (p.strip().lower() for p in first_section.split("+")):
+            if not part:
+                continue
+            if part in self._modifier_boxes:
+                self._modifier_boxes[part].setChecked(True)
+            else:
+                self.key_combo.setEditText(part)
+
+    def combination(self) -> str:
+        modifiers = [name for name in KEY_COMBO_MODIFIERS if self._modifier_boxes[name].isChecked()]
+        key = self.key_combo.currentText().strip().lower()
+        parts = modifiers + ([key] if key else [])
+        return "+".join(parts)
+
+    def _update_preview(self, *_args) -> None:
+        combo = self.combination()
+        self.preview.setText(f"Result:  {combo}" if combo else "Result:  (empty)")
+        ok_button = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
+        if ok_button is not None:
+            ok_button.setEnabled(bool(combo))
+
+    def _toggle_recording(self, recording: bool) -> None:
+        self._recording = recording
+        self.record_button.setText("Press a key…" if recording else "Record")
+        if recording:
+            self.grabKeyboard()
+        else:
+            self.releaseKeyboard()
+
+    def keyPressEvent(self, event) -> None:
+        if not self._recording:
+            super().keyPressEvent(event)
+            return
+        if event.key() in self._LONE_MODIFIERS:
+            return
+
+        modifiers = event.modifiers()
+        self._modifier_boxes["ctrl"].setChecked(bool(modifiers & Qt.KeyboardModifier.ControlModifier))
+        self._modifier_boxes["shift"].setChecked(bool(modifiers & Qt.KeyboardModifier.ShiftModifier))
+        self._modifier_boxes["alt"].setChecked(bool(modifiers & Qt.KeyboardModifier.AltModifier))
+        self._modifier_boxes["super"].setChecked(bool(modifiers & Qt.KeyboardModifier.MetaModifier))
+        if "alt_gr" in self._modifier_boxes:
+            self._modifier_boxes["alt_gr"].setChecked(bool(modifiers & Qt.KeyboardModifier.GroupSwitchModifier))
+
+        name = qt_key_to_evdev_name(event.key(), event.text())
+        if name is not None:
+            self.key_combo.setEditText(name)
+
+        # Stop recording (releases the keyboard grab via the toggled handler).
+        self.record_button.setChecked(False)
+        self._update_preview()
+
+    def closeEvent(self, event) -> None:
+        if self._recording:
+            self.releaseKeyboard()
+        super().closeEvent(event)
+
+
+def show_key_combine_dialog(ui: Ui_ButtonForm) -> None:
+    """Opens the key-combination builder and writes the result into the Press
+    Keys field of the selected button."""
+    deck_id = _deck()
+    page_id = _page()
+    button_id = _button()
+    if deck_id is None or page_id is None or button_id is None:
+        return
+
+    dialog = KeyCombineDialog(main_window, ui.keys.text())
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        return
+
+    combo = dialog.combination()
+    if not combo:
+        return
+
+    blocker = QSignalBlocker(ui.keys)
+    ui.keys.setText(combo)
+    del blocker
+    update_button_attribute("keys", combo)
 
 
 # Ready-made multimedia / brightness key actions. The values are evdev key
@@ -1629,6 +1914,13 @@ def toggle_dim_all() -> None:
     api.toggle_dimmers()
 
 
+def change_brightness_all(amount: int) -> None:
+    """Adjusts the brightness of every connected deck by the given amount.
+    Used by the system tray brightness up/down actions."""
+    for deck_id in api.decks_by_serial:
+        api.change_brightness(deck_id, amount)
+
+
 def toggle_dark_mode(checked: bool) -> None:
     """Applies and persists the dark mode preference."""
     app = QApplication.instance()
@@ -1751,14 +2043,24 @@ class PageSettingsDialog(QDialog):
         hint.setStyleSheet("color: grey;")
         layout.addWidget(hint)
 
+        self.clone_requested = False
+        self.clone_page = QPushButton("Clone this page", self)
+        self.clone_page.setToolTip("Create a copy of this page with all of its buttons")
+        layout.addWidget(self.clone_page)
+
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
         )
         layout.addWidget(self.button_box)
 
         self.use_focused.clicked.connect(self._fill_focused)
+        self.clone_page.clicked.connect(self._request_clone)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
+
+    def _request_clone(self) -> None:
+        self.clone_requested = True
+        self.accept()
 
     def _fill_focused(self) -> None:
         app = get_focused_app()
@@ -1788,6 +2090,10 @@ def show_page_settings(window: "MainWindow") -> None:
 
     dialog = PageSettingsDialog(window, _build_tab_label("Page", page_id), current_app, candidates)
     if not dialog.exec():
+        return
+
+    if dialog.clone_requested is True:
+        handle_clone_page()
         return
 
     app = dialog.selected_app()
@@ -1829,6 +2135,11 @@ def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     ui = main_window.ui
     # allow call redraw_button from ui instance
     ui.redraw_button = redraw_button  # type: ignore [attr-defined]
+
+    # Keyboard shortcuts for the selected button: copy / paste / clear.
+    QShortcut(QKeySequence.StandardKey.Copy, main_window, activated=copy_selected_button)
+    QShortcut(QKeySequence.StandardKey.Paste, main_window, activated=paste_selected_button)
+    QShortcut(QKeySequence.StandardKey.Delete, main_window, activated=clear_selected_button)
 
     api.streamdeck_keys.key_pressed.connect(partial(handle_keypress, ui))
 
@@ -1877,10 +2188,17 @@ def create_tray(logo: QIcon, app: QApplication) -> QSystemTrayIcon:
     main_window.tray.activated.connect(main_window.systray_clicked)  # type: ignore [attr-defined]
 
     menu = QMenu()
+    action_brightness_up = QAction("Brightness up", main_window)
+    action_brightness_up.triggered.connect(partial(change_brightness_all, 10))  # type: ignore [attr-defined]
+    action_brightness_down = QAction("Brightness down", main_window)
+    action_brightness_down.triggered.connect(partial(change_brightness_all, -10))  # type: ignore [attr-defined]
     action_dim = QAction("Dim display (toggle)", main_window)
     action_dim.triggered.connect(toggle_dim_all)  # type: ignore [attr-defined]
     action_configure = QAction("Configure...", main_window)
     action_configure.triggered.connect(main_window.bring_to_top)  # type: ignore [attr-defined]
+    menu.addAction(action_brightness_up)
+    menu.addAction(action_brightness_down)
+    menu.addSeparator()
     menu.addAction(action_dim)
     menu.addAction(action_configure)
     menu.addSeparator()

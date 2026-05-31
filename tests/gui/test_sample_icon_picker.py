@@ -78,6 +78,42 @@ def test_media_presets_are_valid_keys():
 
 
 @pytest.mark.serial
+def test_recent_icons_round_trip(qtbot, api_and_window, mocker):
+    main_window, _api = api_and_window
+
+    # Keep the test off the real on-disk settings.
+    store = {}
+    mocker.patch.object(main_window.settings, "value", side_effect=lambda key, default=None: store.get(key, default))
+    mocker.patch.object(main_window.settings, "setValue", side_effect=lambda key, value: store.__setitem__(key, value))
+    # Treat every recorded path as existing.
+    mocker.patch.object(gui.os.path, "exists", return_value=True)
+
+    gui._add_recent_icon("/x/a.png")
+    gui._add_recent_icon("/x/b.png")
+    gui._add_recent_icon("/x/a.png")  # re-using moves it to the front
+
+    assert gui._get_recent_icons() == ["/x/a.png", "/x/b.png"]
+
+
+@pytest.mark.serial
+def test_chosen_icon_is_recorded_as_recent(qtbot, api_and_window, mocker):
+    main_window, api = api_and_window
+    _select_first_button(qtbot, main_window)
+
+    mocker.patch.object(gui, "list_sample_icons", return_value=CATEGORIES)
+    mocker.patch.object(gui, "build_browser_icons", return_value=[])
+    mocker.patch.object(gui, "build_font_awesome_icons", return_value=[])
+    mocker.patch.object(gui, "build_font_awesome_brand_icons", return_value=[])
+    mocker.patch.object(gui, "_get_recent_icons", return_value=[])
+    add_recent_spy = mocker.patch.object(gui, "_add_recent_icon")
+    _mock_picker(mocker, accepted=True)
+
+    qtbot.mouseClick(_sample_button(main_window), Qt.LeftButton)
+
+    add_recent_spy.assert_called_once_with(SAMPLE)
+
+
+@pytest.mark.serial
 def test_sample_icon_picker_cancelled(qtbot, api_and_window, mocker):
     main_window, api = api_and_window
     _select_first_button(qtbot, main_window)

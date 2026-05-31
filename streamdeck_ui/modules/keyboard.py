@@ -1,10 +1,10 @@
 import time
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from evdev import InputDevice, UInput
 from evdev import ecodes as e
 from evdev import list_devices
-from PySide6.QtCore import QStringListModel, QThread
+from PySide6.QtCore import QStringListModel, Qt, QThread
 from PySide6.QtWidgets import QCompleter
 
 _DEFAULT_KEY_PRESS_DELAY = 0.05
@@ -408,6 +408,49 @@ def get_valid_key_names() -> List[str]:
     key_names.extend(_OLD_PYNPUT_KEYS.keys())
     key_names.extend(_MODIFIER_KEYS.keys())
     return sorted(key_names)
+
+
+# Modifiers offered by the key combination builder, in display order.
+KEY_COMBO_MODIFIERS = ["ctrl", "shift", "alt", "alt_gr", "super"]
+
+# Maps non-letter/digit Qt keys to the evdev key names used by "Press Keys".
+_QT_SPECIAL_KEYS = {
+    Qt.Key.Key_Escape: "esc",
+    Qt.Key.Key_Tab: "tab",
+    Qt.Key.Key_Backspace: "backspace",
+    Qt.Key.Key_Return: "enter",
+    Qt.Key.Key_Enter: "enter",
+    Qt.Key.Key_Space: "space",
+    Qt.Key.Key_Delete: "delete",
+    Qt.Key.Key_Insert: "insert",
+    Qt.Key.Key_Home: "home",
+    Qt.Key.Key_End: "end",
+    Qt.Key.Key_PageUp: "pageup",
+    Qt.Key.Key_PageDown: "pagedown",
+    Qt.Key.Key_Left: "left",
+    Qt.Key.Key_Right: "right",
+    Qt.Key.Key_Up: "up",
+    Qt.Key.Key_Down: "down",
+    Qt.Key.Key_CapsLock: "capslock",
+    Qt.Key.Key_Print: "print",
+}
+
+
+def qt_key_to_evdev_name(qt_key: int, text: str = "") -> Optional[str]:
+    """Translates a Qt key code (from a captured key press) to the evdev key
+    name used by the Press Keys field, or None if it is not a usable key."""
+    if qt_key in _QT_SPECIAL_KEYS:
+        return _QT_SPECIAL_KEYS[qt_key]
+    if Qt.Key.Key_F1 <= qt_key <= Qt.Key.Key_F12:
+        return f"f{qt_key - int(Qt.Key.Key_F1) + 1}"
+    if Qt.Key.Key_A <= qt_key <= Qt.Key.Key_Z:
+        return chr(qt_key).lower()
+    if Qt.Key.Key_0 <= qt_key <= Qt.Key.Key_9:
+        return chr(qt_key)
+    stripped = (text or "").strip().lower()
+    if len(stripped) == 1 and stripped.isalnum():
+        return stripped
+    return None
 
 
 def check_caps_lock() -> bool:

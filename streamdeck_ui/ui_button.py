@@ -331,6 +331,11 @@ class Ui_ButtonForm(object):
 
         self.horizontalLayout_keys.addWidget(self.keys)
 
+        self.key_combo = QPushButton(ButtonForm)
+        self.key_combo.setObjectName(u"key_combo")
+
+        self.horizontalLayout_keys.addWidget(self.key_combo)
+
         self.media_keys = QPushButton(ButtonForm)
         self.media_keys.setObjectName(u"media_keys")
 
@@ -399,6 +404,11 @@ class Ui_ButtonForm(object):
 
         self.formLayout.setWidget(11, QFormLayout.FieldRole, self.write)
 
+        self.test_action = QPushButton(ButtonForm)
+        self.test_action.setObjectName(u"test_action")
+
+        self.formLayout.setWidget(12, QFormLayout.FieldRole, self.test_action)
+
 
         self.retranslateUi(ButtonForm)
 
@@ -458,6 +468,10 @@ class Ui_ButtonForm(object):
 #if QT_CONFIG(tooltip)
         self.media_keys.setToolTip(QCoreApplication.translate("ButtonForm", u"Insert a media or brightness key", None))
 #endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
+        self.key_combo.setToolTip(QCoreApplication.translate("ButtonForm", u"Build a key combination (with capture)", None))
+#endif // QT_CONFIG(tooltip)
+        self.key_combo.setText(QCoreApplication.translate("ButtonForm", u"Keys…", None))
         self.media_keys.setText(QCoreApplication.translate("ButtonForm", u"Media…", None))
         self.label_8.setText(QCoreApplication.translate("ButtonForm", u"Switch Page:", None))
 #if QT_CONFIG(tooltip)
@@ -471,5 +485,9 @@ class Ui_ButtonForm(object):
         self.label_10.setText(QCoreApplication.translate("ButtonForm", u"Switch state", None))
         self.label_7.setText(QCoreApplication.translate("ButtonForm", u"Brightness +/-:", None))
         self.label_6.setText(QCoreApplication.translate("ButtonForm", u"Write Text:", None))
+#if QT_CONFIG(tooltip)
+        self.test_action.setToolTip(QCoreApplication.translate("ButtonForm", u"Run this button's action now to test it", None))
+#endif // QT_CONFIG(tooltip)
+        self.test_action.setText(QCoreApplication.translate("ButtonForm", u"Test action", None))
     # retranslateUi
 
