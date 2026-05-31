@@ -163,6 +163,20 @@
            </spacer>
           </item>
           <item>
+           <widget class="QPushButton" name="page_settings">
+            <property name="toolTip">
+             <string>Page settings (bind to a focused application)</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset resource="resources.qrc">
+              <normaloff>:/icons/icons/gear.png</normaloff>:/icons/icons/gear.png</iconset>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="add_page">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
@@ -356,10 +370,6 @@
      <string>View</string>
     </property>
     <addaction name="actionDarkMode"/>
-    <addaction name="separator"/>
-    <addaction name="actionFollowFocus"/>
-    <addaction name="actionAssignFocusPage"/>
-    <addaction name="actionClearFocusPage"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -411,24 +421,6 @@
    </property>
    <property name="text">
     <string>Dark Mode</string>
-   </property>
-  </action>
-  <action name="actionFollowFocus">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Follow Focused Application</string>
-   </property>
-  </action>
-  <action name="actionAssignFocusPage">
-   <property name="text">
-    <string>Assign Page to Focused App…</string>
-   </property>
-  </action>
-  <action name="actionClearFocusPage">
-   <property name="text">
-    <string>Clear Page's Focus App</string>
    </property>
   </action>
  </widget>

@@ -65,3 +65,31 @@ def test_detector_exceptions_are_swallowed():
 
     with patch.object(focus, "_DETECTORS", [boom, lambda: "safe"]):
         assert focus.get_focused_app() == "safe"
+
+
+def test_collect_sway_apps():
+    tree = {
+        "app_id": None,
+        "nodes": [
+            {"app_id": "Firefox", "nodes": []},
+            {"window_properties": {"class": "Code"}, "nodes": []},
+        ],
+        "floating_nodes": [{"app_id": "kitty", "nodes": []}],
+    }
+    found = set()
+    focus._collect_sway_apps(tree, found)
+    assert found == {"firefox", "code", "kitty"}
+
+
+def test_open_from_hyprland():
+    with patch.dict("os.environ", {"HYPRLAND_INSTANCE_SIGNATURE": "abc"}, clear=False), patch.object(
+        focus.shutil, "which", return_value="/usr/bin/hyprctl"
+    ), patch.object(focus, "_run", return_value='[{"class": "Alacritty"}, {"class": "firefox"}]'):
+        assert focus._open_from_hyprland() == {"alacritty", "firefox"}
+
+
+def test_list_open_apps_sorted_and_deduped():
+    with patch.object(focus, "_open_from_sway", return_value={"firefox", "kitty"}), patch.object(
+        focus, "_open_from_hyprland", return_value=set()
+    ), patch.object(focus, "_open_from_x11", return_value={"kitty", "code"}):
+        assert focus.list_open_apps() == ["code", "firefox", "kitty"]

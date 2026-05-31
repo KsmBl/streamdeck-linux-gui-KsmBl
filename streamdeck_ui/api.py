@@ -636,16 +636,6 @@ class StreamDeckServer:
         # Wait for at least one cycle
         display_handler.synchronize()
 
-    def get_focus_follow(self, serial_number: str) -> bool:
-        """Returns whether the deck switches pages based on the focused application."""
-        return self.state[serial_number].focus_follow
-
-    def set_focus_follow(self, serial_number: str, enabled: bool) -> None:
-        """Enables or disables switching pages based on the focused application."""
-        if self.state[serial_number].focus_follow != enabled:
-            self.state[serial_number].focus_follow = enabled
-            self._save_state()
-
     def get_focus_pages(self, serial_number: str) -> Dict[str, int]:
         """Returns the mapping of focused application id -> page for the deck."""
         return self.state[serial_number].focus_pages

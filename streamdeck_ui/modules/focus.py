@@ -142,6 +142,75 @@ def focus_detection_available() -> bool:
     return get_focused_app() is not None
 
 
+def _collect_sway_apps(node: dict, found: set) -> None:
+    app = node.get("app_id") or (node.get("window_properties") or {}).get("class")
+    normalized = _normalize(app)
+    if normalized:
+        found.add(normalized)
+    for child in node.get("nodes", []) + node.get("floating_nodes", []):
+        _collect_sway_apps(child, found)
+
+
+def _open_from_sway() -> set:
+    if not os.environ.get("SWAYSOCK") or not shutil.which("swaymsg"):
+        return set()
+    output = _run(["swaymsg", "-t", "get_tree"])
+    if not output:
+        return set()
+    try:
+        tree = json.loads(output)
+    except ValueError:
+        return set()
+    found: set = set()
+    _collect_sway_apps(tree, found)
+    return found
+
+
+def _open_from_hyprland() -> set:
+    if not os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") or not shutil.which("hyprctl"):
+        return set()
+    output = _run(["hyprctl", "-j", "clients"])
+    if not output:
+        return set()
+    try:
+        clients = json.loads(output)
+    except ValueError:
+        return set()
+    return {app for app in (_normalize(client.get("class")) for client in clients) if app}
+
+
+def _open_from_x11() -> set:
+    if not os.environ.get("DISPLAY") or not shutil.which("xprop"):
+        return set()
+    listing = _run(["xprop", "-root", "_NET_CLIENT_LIST"])
+    if not listing or "#" not in listing:
+        return set()
+    window_ids = [token.strip(",") for token in listing.split("#", 1)[1].split() if token.strip(",").startswith("0x")]
+    found: set = set()
+    for window_id in window_ids:
+        output = _run(["xprop", "-id", window_id, "WM_CLASS"])
+        if not output or "=" not in output:
+            continue
+        values = [part.strip().strip('"') for part in output.split("=", 1)[1].split(",")]
+        normalized = _normalize(values[-1] if values else None)
+        if normalized:
+            found.add(normalized)
+    return found
+
+
+def list_open_apps() -> List[str]:
+    """Returns the identifiers of currently open applications, so the user can
+    pick one to bind to a page. Best effort; may be empty on unsupported
+    systems."""
+    apps: set = set()
+    for collector in (_open_from_sway, _open_from_hyprland, _open_from_x11):
+        try:
+            apps.update(collector())
+        except Exception:  # noqa: BLE001 - never let enumeration crash callers
+            pass
+    return sorted(apps)
+
+
 class FocusWatcher(QThread):
     """Polls the focused application and emits ``focus_changed`` when it changes."""
 
