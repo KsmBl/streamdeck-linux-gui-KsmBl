@@ -43,6 +43,8 @@ def test_select_modern_theme_applies_and_persists(api_and_window, mocker):
     """Selecting the modern theme applies its accent and persists the choice."""
     main_window, _api = api_and_window
     theme_spy = mocker.patch.object(gui, "set_theme")
+    # Independent of any accent the user may have persisted in real settings.
+    mocker.patch.object(gui, "get_modern_accent", return_value="#4F46E5")
 
     main_window.ui.actionDarkMode.setChecked(False)
     main_window.ui.actionThemeModern.trigger()
@@ -90,6 +92,9 @@ def test_dark_mode_layers_over_any_theme(api_and_window, mocker):
     main_window, _api = api_and_window
     mocker.patch.object(gui, "set_theme")
     mocker.patch.object(gui, "set_dark_mode_enabled")
+    # Use the default accent so the dark variant's built-in accent is asserted,
+    # regardless of any accent the user may have persisted in real settings.
+    mocker.patch.object(gui, "get_modern_accent", return_value="#4F46E5")
 
     main_window.ui.actionDarkMode.setChecked(False)
     main_window.ui.actionThemeModern.trigger()

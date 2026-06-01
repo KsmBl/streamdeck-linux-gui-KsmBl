@@ -11,6 +11,35 @@ from streamdeck_ui.config import (
 )
 from streamdeck_ui.model import ButtonMultiState, ButtonState, DeckState
 
+
+def test_button_fields_round_trip_through_config(tmp_path):
+    """All ButtonState fields, including live_source and cycle_states, survive a
+    write/read cycle so configured live and toggle buttons persist."""
+    path = str(tmp_path / "config.json")
+    state = {
+        "DL4XXXXXX": DeckState(
+            buttons={
+                0: {
+                    0: ButtonMultiState(
+                        state=0,
+                        states={
+                            0: ButtonState(text="hi", live_source="clock", cycle_states=True, switch_state=2),
+                        },
+                    )
+                }
+            },
+        )
+    }
+
+    write_state_to_config(path, state)
+    restored = read_state_from_config(path)
+
+    button = restored["DL4XXXXXX"].buttons[0][0].states[0]
+    assert button.live_source == "clock"
+    assert button.cycle_states is True
+    assert button.switch_state == 2
+
+
 TEST_CONFIG_STATE = {
     "DL4XXXXXX": {
         "buttons": {
@@ -33,6 +62,8 @@ TEST_CONFIG_STATE = {
                             "font_color": "",
                             "font_size": 0,
                             "background_color": "",
+                            "live_source": "",
+                            "cycle_states": False,
                         }
                     },
                 }

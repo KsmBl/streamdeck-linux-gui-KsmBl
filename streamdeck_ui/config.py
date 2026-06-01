@@ -222,6 +222,8 @@ def _to_button_state(button: dict) -> ButtonState:
         font_color=button.get("font_color", ""),
         font_size=button.get("font_size", 0),
         background_color=button.get("background_color", ""),
+        live_source=button.get("live_source", ""),
+        cycle_states=button.get("cycle_states", False),
     )
 
 
@@ -270,6 +272,8 @@ def _to_button_config(button: ButtonState) -> dict:
         "font_color": button.font_color,
         "font_size": button.font_size,
         "background_color": button.background_color,
+        "live_source": button.live_source,
+        "cycle_states": button.cycle_states,
     }
 
 
