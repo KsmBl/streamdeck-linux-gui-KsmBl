@@ -15,12 +15,12 @@ credit for the original work goes to its authors and contributors.
   applications (from their desktop entries); pick one to fill in the launch command and a fitting
   icon automatically.
 * **Icon library** — an **Icons…** button opens a searchable picker with bundled glyph sets
-  (media, volume, brightness, web, system), a **Windows XP**-style retro pixel-art pack (window
-  controls, file types, recycle bin, folders and other classics), your installed browsers' real
-  icons (Firefox, Chrome, Chromium, Edge, Vivaldi, Brave), and — when Font Awesome is installed —
-  large *Font Awesome* and *Font Awesome Brands* categories. Icons come in white and colourised
-  variants, with an optional colour tint, and there are separate **Stream Deck brightness** and
-  **screen brightness** icons so the two are easy to tell apart.
+  (media, volume, brightness, web, system), large **Windows XP** icon sets at 16/32/48-pixel sizes
+  (hundreds of classic system, file-type and device icons), your installed browsers' real icons
+  (Firefox, Chrome, Chromium, Edge, Vivaldi, Brave), and — when Font Awesome is installed — large
+  *Font Awesome* and *Font Awesome Brands* categories. Icons come in white and colourised variants,
+  with an optional colour tint, and there are separate **Stream Deck brightness** and **screen
+  brightness** icons so the two are easy to tell apart.
 * **Media & brightness key presets** — a **Media…** menu next to *Press Keys* inserts ready-made
   multimedia and brightness key actions (volume, play/pause, next/previous, brightness up/down).
 * **Page navigation keys** — one-click **◀ Prev Page** / **Next Page ▶** buttons turn a key into a

@@ -15,9 +15,9 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   Programme (aus deren Desktop-Einträgen) auf; wählen Sie eines aus, und der Startbefehl sowie ein
   passendes Icon werden automatisch gesetzt.
 * **Icon-Bibliothek** — eine Schaltfläche **Icons…** öffnet eine durchsuchbare Auswahl mit
-  mitgelieferten Symbolsätzen (Medien, Lautstärke, Helligkeit, Web, System), einem **Windows-XP**-
-  artigen Retro-Pixelart-Paket (Fenstersteuerung, Dateitypen, Papierkorb, Ordner und weitere
-  Klassiker), den echten Icons Ihrer installierten Browser (Firefox, Chrome, Chromium, Edge,
+  mitgelieferten Symbolsätzen (Medien, Lautstärke, Helligkeit, Web, System), großen **Windows-XP**-
+  Icon-Sätzen in den Größen 16/32/48 Pixel (Hunderte klassischer System-, Dateityp- und
+  Geräte-Icons), den echten Icons Ihrer installierten Browser (Firefox, Chrome, Chromium, Edge,
   Vivaldi, Brave) und — falls Font Awesome installiert ist — den großen Kategorien *Font Awesome*
   und *Font Awesome Brands*. Icons gibt es in Weiß und in farbigen Varianten samt optionaler
   Einfärbung; getrennte Symbole für **Stream-Deck-Helligkeit** und **Bildschirmhelligkeit** machen

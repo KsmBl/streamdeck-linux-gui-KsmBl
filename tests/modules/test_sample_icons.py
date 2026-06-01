@@ -49,12 +49,10 @@ def test_bundled_sample_icons_present():
     assert "volume" in result
 
 
-def test_bundled_windows_xp_pack_present():
-    # The retro Windows XP style pack ships as its own category.
+def test_bundled_windows_xp_packs_present():
+    # The Windows XP icon maps are sliced into one category per source size.
     result = sample_icons.list_sample_icons()
-    assert "windows_xp" in result
-
-    names = {name for name, _ in result["windows_xp"]}
-    # A representative spread: window controls, file types and system icons.
-    for expected in ("Window Close", "Folder", "Text File", "Recycle Empty"):
-        assert expected in names
+    for category in ("windows_xp_16", "windows_xp_32", "windows_xp_48"):
+        assert category in result
+        # Each sheet yields a large set of individual icons.
+        assert len(result[category]) > 100
