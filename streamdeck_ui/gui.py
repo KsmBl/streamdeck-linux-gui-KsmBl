@@ -481,8 +481,12 @@ def handle_delete_page() -> None:
             tab_index_to_remove = tab_index
 
     main_window.ui.pages.setCurrentIndex(tab_index_to_move)
+    # Removing the page also clears any application binding it had; reflect that
+    # in the tab labels and stop the focus watcher if no bindings remain.
     api.remove_page(deck_id, page_id)
     main_window.ui.pages.removeTab(tab_index_to_remove)
+    refresh_focus_tab_tooltips(main_window.ui, deck_id)
+    update_focus_watcher(main_window.ui)
     if main_window.ui.pages.count() == 1:
         main_window.ui.remove_page.setEnabled(False)
 

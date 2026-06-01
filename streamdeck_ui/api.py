@@ -284,6 +284,10 @@ class StreamDeckServer:
 
         del self.state[serial_number].buttons[page]
         self.display_handlers[serial_number].remove_page(page)
+        # Drop any focus-application binding for the page so a deleted page is
+        # not left mapped to an application (which would keep the focus watcher
+        # alive and stop the deck returning to the last selected page).
+        self.remove_focus_page(serial_number, page)
 
     def _on_steam_deck_detached(self, deck_id: str):
         serial_number = self.decks_map_id_to_serial.get(deck_id, None)
