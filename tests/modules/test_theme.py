@@ -39,3 +39,36 @@ def test_apply_theme_switches_palette(qapp):
     restored_window = qapp.palette().color(QPalette.ColorRole.Window)
     # Turning dark mode off should restore the light background.
     assert restored_window.lightness() >= 128
+
+
+def test_xp_theme_setting_defaults_to_off(tmp_path):
+    settings = _temp_settings(tmp_path)
+    assert theme.is_xp_theme_enabled(settings) is False
+
+
+def test_xp_theme_setting_roundtrip(tmp_path):
+    settings = _temp_settings(tmp_path)
+
+    theme.set_xp_theme_enabled(settings, True)
+    assert theme.is_xp_theme_enabled(settings) is True
+
+    theme.set_xp_theme_enabled(settings, False)
+    assert theme.is_xp_theme_enabled(settings) is False
+
+
+def test_apply_xp_theme_sets_luna_look(qapp):
+    theme._default_palette = None
+    theme._default_style = None
+    qapp.setPalette(QPalette(QColor(240, 240, 240)))
+
+    theme.apply_theme(qapp, xp=True)
+
+    window = qapp.palette().color(QPalette.ColorRole.Window)
+    # The Luna surface is the signature #ECE9D8 beige.
+    assert (window.red(), window.green(), window.blue()) == (236, 233, 216)
+    # The XP theme applies a full stylesheet, unlike the palette-only themes.
+    assert "QPushButton" in qapp.styleSheet()
+
+    theme.apply_theme(qapp, xp=False)
+    # Disabling the theme clears the stylesheet again.
+    assert qapp.styleSheet() == ""

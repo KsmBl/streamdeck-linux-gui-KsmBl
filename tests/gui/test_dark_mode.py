@@ -31,3 +31,34 @@ def test_toggle_dark_mode_applies_and_persists(api_and_window, mocker):
 
     main_window.ui.actionDarkMode.setChecked(False)
     persist_spy.assert_called_with(main_window.settings, False)
+
+
+@pytest.mark.serial
+def test_xp_theme_action_present(api_and_window):
+    """The View menu exposes a checkable Windows XP theme action."""
+    main_window, _api = api_and_window
+    assert main_window.ui.actionXPTheme.isCheckable()
+
+
+@pytest.mark.serial
+def test_xp_theme_and_dark_mode_are_mutually_exclusive(api_and_window, mocker):
+    """Enabling one theme turns the other off and applies the right look."""
+    main_window, _api = api_and_window
+
+    mocker.patch.object(gui, "set_dark_mode_enabled")
+    mocker.patch.object(gui, "set_xp_theme_enabled")
+
+    main_window.ui.actionDarkMode.setChecked(False)
+    main_window.ui.actionXPTheme.setChecked(False)
+
+    # Turn on dark mode, then the XP theme: dark mode must switch off.
+    main_window.ui.actionDarkMode.setChecked(True)
+    main_window.ui.actionXPTheme.setChecked(True)
+    assert main_window.ui.actionDarkMode.isChecked() is False
+
+    window = QApplication.instance().palette().color(QPalette.ColorRole.Window)
+    assert (window.red(), window.green(), window.blue()) == (236, 233, 216)
+
+    # Turning the XP theme back off restores the default look.
+    main_window.ui.actionXPTheme.setChecked(False)
+    assert QApplication.instance().styleSheet() == ""
