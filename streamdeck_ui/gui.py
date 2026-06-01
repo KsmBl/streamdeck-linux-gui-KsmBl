@@ -99,9 +99,11 @@ from streamdeck_ui.modules.theme import (
     THEME_MODERN,
     THEME_XP,
     apply_theme,
+    get_modern_accent,
     get_theme,
     is_dark_mode_enabled,
     set_dark_mode_enabled,
+    set_modern_accent,
     set_theme,
 )
 from streamdeck_ui.modules.utils.timers import debounce
@@ -2002,7 +2004,12 @@ def _apply_current_theme() -> None:
     app = QApplication.instance()
     if app is None or main_window is None:
         return
-    apply_theme(app, _selected_theme_name(), main_window.ui.actionDarkMode.isChecked())
+    apply_theme(
+        app,
+        _selected_theme_name(),
+        main_window.ui.actionDarkMode.isChecked(),
+        get_modern_accent(main_window.settings),
+    )
 
 
 def select_theme(theme: str, _checked: bool = False) -> None:
@@ -2022,6 +2029,24 @@ def toggle_dark_mode(checked: bool) -> None:
         return
     _apply_current_theme()
     set_dark_mode_enabled(main_window.settings, checked)
+
+
+def choose_modern_accent() -> None:
+    """Lets the user pick the Modern theme accent colour, then applies it.
+
+    Switches to the Modern theme if it is not already active so the change is
+    visible immediately."""
+    if main_window is None:
+        return
+    current = QColor(get_modern_accent(main_window.settings))
+    color = QColorDialog.getColor(current, main_window, "Choose the modern theme accent colour")
+    if not color.isValid():
+        return
+    set_modern_accent(main_window.settings, color.name())
+    if not main_window.ui.actionThemeModern.isChecked():
+        main_window.ui.actionThemeModern.setChecked(True)
+        set_theme(main_window.settings, THEME_MODERN)
+    _apply_current_theme()
 
 
 def _switch_to_page(ui, deck_id: str, target_page: int) -> None:
@@ -2237,6 +2262,7 @@ def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     ui.actionThemeModern.triggered.connect(partial(select_theme, THEME_MODERN))
     ui.actionDarkMode.setChecked(is_dark_mode_enabled(main_window.settings))
     ui.actionDarkMode.toggled.connect(toggle_dark_mode)
+    ui.actionModernAccent.triggered.connect(choose_modern_accent)
     ui.page_settings.clicked.connect(partial(show_page_settings, main_window))
     ui.settingsButton.setEnabled(False)
     ui.button_states.clear()
@@ -2459,6 +2485,7 @@ def start(_exit: bool = False) -> None:
                 app,
                 get_theme(startup_settings),
                 is_dark_mode_enabled(startup_settings),
+                get_modern_accent(startup_settings),
             )
 
             main_window = create_main_window(api, app)

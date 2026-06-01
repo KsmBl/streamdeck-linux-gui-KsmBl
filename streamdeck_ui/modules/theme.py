@@ -14,7 +14,7 @@ so they survive restarts.
 """
 
 from string import Template
-from typing import Optional
+from typing import Optional, Tuple
 
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QColor, QPalette
@@ -28,6 +28,10 @@ THEMES = (THEME_DEFAULT, THEME_XP, THEME_MODERN)
 
 THEME_SETTING = "theme"
 DARK_MODE_SETTING = "dark_mode"
+MODERN_ACCENT_SETTING = "modern_accent"
+
+# The default Modern-theme accent (indigo). Users can override it.
+DEFAULT_MODERN_ACCENT = "#4F46E5"
 
 # Tooltips are not covered by the palette consistently across styles, so the
 # default dark theme gets an explicit stylesheet for them.
@@ -492,8 +496,26 @@ _MODERN_DARK = {
     "tooltip_fg": "#E6E8EC",
 }
 
-_MODERN_STYLESHEET_LIGHT = _MODERN_TEMPLATE.substitute(_MODERN_LIGHT)
-_MODERN_STYLESHEET_DARK = _MODERN_TEMPLATE.substitute(_MODERN_DARK)
+
+def _modern_accent_pair(dark: bool, accent: Optional[str]) -> Tuple[str, str]:
+    """Returns the (accent, accent_hover) colours for the modern theme.
+
+    Falls back to the variant's built-in accent when none is given or the value
+    is not a valid colour. The hover shade is derived from the accent."""
+    base = _MODERN_DARK if dark else _MODERN_LIGHT
+    # The default accent is treated as "unset" so each variant keeps its tuned
+    # built-in accent (e.g. a brighter indigo in dark mode).
+    if not accent or accent == DEFAULT_MODERN_ACCENT or not QColor(accent).isValid():
+        return base["accent"], base["accent_hover"]
+    hover = QColor(accent).lighter(120) if dark else QColor(accent).darker(115)
+    return accent, hover.name()
+
+
+def _modern_stylesheet(dark: bool, accent: Optional[str] = None) -> str:
+    """Builds the modern stylesheet for the given dark state and accent."""
+    colors = dict(_MODERN_DARK if dark else _MODERN_LIGHT)
+    colors["accent"], colors["accent_hover"] = _modern_accent_pair(dark, accent)
+    return _MODERN_TEMPLATE.substitute(colors)
 
 
 # ---------------------------------------------------------------------------
@@ -599,8 +621,12 @@ def _build_xp_palette(dark: bool = False) -> QPalette:
     )
 
 
-def _build_modern_palette(dark: bool = False) -> QPalette:
-    """Builds the modern palette (light off-white or dark slate)."""
+def _build_modern_palette(dark: bool = False, accent: Optional[str] = None) -> QPalette:
+    """Builds the modern palette (light off-white or dark slate).
+
+    The selection highlight uses the chosen accent colour (or the variant
+    default when none is supplied)."""
+    highlight, _hover = _modern_accent_pair(dark, accent)
     if dark:
         return _palette_from(
             {
@@ -612,7 +638,7 @@ def _build_modern_palette(dark: bool = False) -> QPalette:
                 "tooltip_text": "#E6E8EC",
                 "button": "#1E212B",
                 "bright_text": "#F87171",
-                "highlight": "#6366F1",
+                "highlight": highlight,
                 "highlighted_text": "#FFFFFF",
                 "disabled_text": "#5A606C",
             }
@@ -627,7 +653,7 @@ def _build_modern_palette(dark: bool = False) -> QPalette:
             "tooltip_text": "#FFFFFF",
             "button": "#FFFFFF",
             "bright_text": "#DC2626",
-            "highlight": "#4F46E5",
+            "highlight": highlight,
             "highlighted_text": "#FFFFFF",
             "disabled_text": "#B4B8C0",
         }
@@ -650,14 +676,18 @@ def _capture_default_look(app: QApplication) -> None:
         _default_style = current_style.objectName() if current_style else ""
 
 
-def apply_theme(app: QApplication, theme: str = THEME_DEFAULT, dark: bool = False) -> None:
-    """Applies the chosen base theme and dark-mode state to the application."""
+def apply_theme(
+    app: QApplication, theme: str = THEME_DEFAULT, dark: bool = False, modern_accent: Optional[str] = None
+) -> None:
+    """Applies the chosen base theme and dark-mode state to the application.
+
+    ``modern_accent`` overrides the Modern theme's accent colour."""
     _capture_default_look(app)
 
     if theme == THEME_MODERN:
         app.setStyle("Fusion")
-        app.setPalette(_build_modern_palette(dark))
-        app.setStyleSheet(_MODERN_STYLESHEET_DARK if dark else _MODERN_STYLESHEET_LIGHT)
+        app.setPalette(_build_modern_palette(dark, modern_accent))
+        app.setStyleSheet(_modern_stylesheet(dark, modern_accent))
     elif theme == THEME_XP:
         app.setStyle("Fusion")
         app.setPalette(_build_xp_palette(dark))
@@ -695,3 +725,15 @@ def is_dark_mode_enabled(settings: QSettings) -> bool:
 def set_dark_mode_enabled(settings: QSettings, enabled: bool) -> None:
     """Persists the dark mode preference."""
     settings.setValue(DARK_MODE_SETTING, enabled)
+
+
+def get_modern_accent(settings: QSettings) -> str:
+    """Returns the persisted Modern-theme accent colour (defaults to indigo)."""
+    value = settings.value(MODERN_ACCENT_SETTING, DEFAULT_MODERN_ACCENT, type=str)
+    return value if QColor(value).isValid() else DEFAULT_MODERN_ACCENT
+
+
+def set_modern_accent(settings: QSettings, color: str) -> None:
+    """Persists the Modern-theme accent colour (ignored when not a valid colour)."""
+    if QColor(color).isValid():
+        settings.setValue(MODERN_ACCENT_SETTING, color)

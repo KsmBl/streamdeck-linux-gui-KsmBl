@@ -111,3 +111,23 @@ def test_switching_back_to_default_clears_stylesheet(qapp):
     assert qapp.styleSheet() != ""
     theme.apply_theme(qapp, theme.THEME_DEFAULT, dark=False)
     assert qapp.styleSheet() == ""
+
+
+def test_modern_accent_setting_defaults_and_roundtrip(tmp_path):
+    settings = _temp_settings(tmp_path)
+    assert theme.get_modern_accent(settings) == theme.DEFAULT_MODERN_ACCENT
+
+    theme.set_modern_accent(settings, "#FF8800")
+    assert theme.get_modern_accent(settings) == "#FF8800"
+
+    # An invalid colour is ignored and the previous value is kept.
+    theme.set_modern_accent(settings, "not-a-colour")
+    assert theme.get_modern_accent(settings) == "#FF8800"
+
+
+def test_custom_modern_accent_drives_highlight_and_stylesheet(qapp):
+    _reset_default_look(qapp)
+    theme.apply_theme(qapp, theme.THEME_MODERN, dark=False, modern_accent="#FF8800")
+    highlight = qapp.palette().color(QPalette.ColorRole.Highlight)
+    assert (highlight.red(), highlight.green(), highlight.blue()) == (255, 136, 0)
+    assert "#FF8800" in qapp.styleSheet()

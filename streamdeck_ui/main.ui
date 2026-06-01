@@ -374,6 +374,7 @@
     <addaction name="actionThemeModern"/>
     <addaction name="separator"/>
     <addaction name="actionDarkMode"/>
+    <addaction name="actionModernAccent"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -449,6 +450,11 @@
    </property>
    <property name="text">
     <string>Modern Theme</string>
+   </property>
+  </action>
+  <action name="actionModernAccent">
+   <property name="text">
+    <string>Modern Accent Colour…</string>
    </property>
   </action>
  </widget>
