@@ -337,6 +337,21 @@ def handle_keypress(ui, deck_id: str, key: int, state: bool) -> None:
                     f"Unable to perform switch button state, the button state {switch_state} does not exist in your current settings"  # noqa: E713
                 )
 
+        if api.get_button_cycle_states(deck_id, page, key):
+            states = api.get_button_states(deck_id, page, key)
+            if len(states) > 1:
+                current_state = api.get_button_state(deck_id, page, key)
+                position = states.index(current_state) if current_state in states else 0
+                next_state = states[(position + 1) % len(states)]
+                api.set_button_state(deck_id, page, key, next_state)
+                if _deck() == deck_id:
+                    if _button() == key:
+                        for button_state in range(ui.button_states.count()):
+                            if ui.button_states.widget(button_state).property("button_state_id") == next_state:
+                                ui.button_states.setCurrentIndex(button_state)
+                                break
+                    redraw_button(key)
+
 
 def _resolve_switch_page_target(deck_id: str, current_page: int, switch_page: int) -> Optional[int]:
     """Resolves a button's switch_page value to a concrete target page id.
@@ -830,6 +845,9 @@ def build_button_state_form(tab) -> None:
         current_live = tab_ui.live_source.findData(button_state.live_source)
         tab_ui.live_source.setCurrentIndex(current_live if current_live >= 0 else 0)
 
+    with QSignalBlocker(tab_ui.cycle_states):
+        tab_ui.cycle_states.setChecked(button_state.cycle_states)
+
     font_family, font_style = find_font_info(button_state.font or DEFAULT_FONT_FALLBACK_PATH)
     prepare_button_state_form_text_font_list(tab_ui, font_family)
     prepare_button_state_form_text_font_style_list(tab_ui, font_family, font_style)
@@ -868,6 +886,7 @@ def build_button_state_form(tab) -> None:
     tab_ui.text_v_align.clicked.connect(partial(update_align_text_vertical))
     tab_ui.test_action.clicked.connect(test_selected_button)
     tab_ui.live_source.currentIndexChanged.connect(partial(update_live_source, tab_ui))
+    tab_ui.cycle_states.toggled.connect(partial(update_button_attribute, "cycle_states"))
 
 
 def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
@@ -894,6 +913,7 @@ def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
     ui.text_v_align.setEnabled(enabled)
     ui.test_action.setEnabled(enabled)
     ui.live_source.setEnabled(enabled)
+    ui.cycle_states.setEnabled(enabled)
     ui.text_color.setEnabled(enabled)
     ui.background_color.setEnabled(enabled)
     # default black color looks like it's enabled even when it's not

@@ -15,7 +15,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QFormLayout, QHBoxLayout,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFormLayout, QHBoxLayout,
     QLabel, QLineEdit, QPlainTextEdit, QPushButton,
     QSizePolicy, QSpinBox, QTextEdit, QVBoxLayout,
     QWidget)
@@ -413,9 +413,12 @@ class Ui_ButtonForm(object):
         self.label_live.setObjectName(u"label_live")
         self.live_source = QComboBox(ButtonForm)
         self.live_source.setObjectName(u"live_source")
-        # Inserted just above the Test action button so it sits with the other
+        self.cycle_states = QCheckBox(ButtonForm)
+        self.cycle_states.setObjectName(u"cycle_states")
+        # Inserted just above the Test action button so they sit with the other
         # button configuration fields.
         self.formLayout.insertRow(12, self.label_live, self.live_source)
+        self.formLayout.insertRow(13, self.cycle_states)
 
 
         self.retranslateUi(ButtonForm)
@@ -500,6 +503,10 @@ class Ui_ButtonForm(object):
         self.label_live.setText(QCoreApplication.translate("ButtonForm", u"Live info:", None))
 #if QT_CONFIG(tooltip)
         self.live_source.setToolTip(QCoreApplication.translate("ButtonForm", u"Show live information (clock, CPU, battery…) as the button text", None))
+#endif // QT_CONFIG(tooltip)
+        self.cycle_states.setText(QCoreApplication.translate("ButtonForm", u"Cycle states on press", None))
+#if QT_CONFIG(tooltip)
+        self.cycle_states.setToolTip(QCoreApplication.translate("ButtonForm", u"Each press advances this button to its next state (toggle)", None))
 #endif // QT_CONFIG(tooltip)
     # retranslateUi
 

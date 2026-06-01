@@ -543,6 +543,21 @@ class StreamDeckServer:
         """Returns the live information source set for the specified button."""
         return self._button_state(serial_number, page, button).live_source
 
+    def set_button_cycle_states(self, serial_number: str, page: int, button: int, enabled: bool) -> None:
+        """Sets whether pressing the button advances to its next state.
+
+        Cycling is a button-wide behaviour, so the flag is applied to every
+        state of the button (the current state changes as it cycles)."""
+        multi_state = self._button_multi_state(serial_number, page, button)
+        if any(state.cycle_states != enabled for state in multi_state.states.values()):
+            for state in multi_state.states.values():
+                state.cycle_states = enabled
+            self._save_state()
+
+    def get_button_cycle_states(self, serial_number: str, page: int, button: int) -> bool:
+        """Returns whether the button cycles through its states when pressed."""
+        return self._button_state(serial_number, page, button).cycle_states
+
     def refresh_live_buttons(self) -> bool:
         """Re-renders every live button on each deck's current page.
 

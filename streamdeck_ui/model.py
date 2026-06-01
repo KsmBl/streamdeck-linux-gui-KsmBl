@@ -35,6 +35,9 @@ class ButtonState:
     live_source: str = ""
     """Live information source rendered as the button text (e.g. clock, cpu).
     When set it overrides ``text`` and is refreshed periodically."""
+    cycle_states: bool = False
+    """When True, pressing the button advances to its next state (wrapping),
+    so a multi-state button acts as a toggle."""
 
 
 @dataclass
