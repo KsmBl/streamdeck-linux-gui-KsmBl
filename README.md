@@ -1,18 +1,13 @@
-[![Stream Deck UI - a Linux UI for the Elgato Stream Deck](docs/art/logo_large.png)](https://github.com/streamdeck-linux-gui/streamdeck-linux-gui)
+# Stream Deck UI for Linux — enhanced fork
 
-_________________
-
-**Stream Deck UI for Linux — enhanced fork.**
+A desktop app to configure and drive an Elgato Stream Deck on Linux.
 
 This is a personal fork of [streamdeck-linux-gui](https://github.com/streamdeck-linux-gui/streamdeck-linux-gui)
 (itself the community continuation of the original
 [streamdeck_ui](https://github.com/timothycrosley/streamdeck-ui)). It keeps everything the
-upstream project does — a desktop app to configure and drive an Elgato Stream Deck on Linux —
-and adds a set of quality-of-life features on top. Upstream is in maintenance mode and is not
-taking new features, so those additions live here instead. All credit for the original work goes
-to its authors and contributors.
-
-![Stream Deck UI usage example](docs/art/example.gif)
+upstream project does and adds a set of quality-of-life features on top. Upstream is in
+maintenance mode and is not taking new features, so those additions live here instead. All
+credit for the original work goes to its authors and contributors.
 
 ## What this fork adds
 
