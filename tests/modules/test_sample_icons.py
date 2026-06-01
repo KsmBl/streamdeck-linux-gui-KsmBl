@@ -47,3 +47,14 @@ def test_bundled_sample_icons_present():
     result = sample_icons.list_sample_icons()
     assert "media" in result
     assert "volume" in result
+
+
+def test_bundled_windows_xp_pack_present():
+    # The retro Windows XP style pack ships as its own category.
+    result = sample_icons.list_sample_icons()
+    assert "windows_xp" in result
+
+    names = {name for name, _ in result["windows_xp"]}
+    # A representative spread: window controls, file types and system icons.
+    for expected in ("Window Close", "Folder", "Text File", "Recycle Empty"):
+        assert expected in names
