@@ -23,6 +23,11 @@ credit for the original work goes to its authors and contributors.
   brightness** icons so the two are easy to tell apart.
 * **Media & brightness key presets** — a **Media…** menu next to *Press Keys* inserts ready-made
   multimedia and brightness key actions (volume, play/pause, next/previous, brightness up/down).
+* **Live info buttons** — a **Live info** dropdown makes a key show a value that updates every
+  second instead of static text: clock, date, CPU or memory usage, battery, or network throughput
+  (all read straight from the kernel, no extra dependencies).
+* **Toggle / cycle keys** — tick **Cycle states on press** and each press advances the key to its
+  next state (wrapping), turning a multi-state key into a toggle such as mute/unmute or on/off.
 * **Page navigation keys** — one-click **◀ Prev Page** / **Next Page ▶** buttons turn a key into a
   relative page switch (with wrap-around) and apply a premade arrow icon.
 * **Per-page application binding** — bind a page to an application (via the page's gear button) and
@@ -32,8 +37,9 @@ credit for the original work goes to its authors and contributors.
   window (e.g. GNOME Wayland) simply leave it inactive.
 * **Themes** — pick a base look under **View**: the **Default** (platform) theme, a nostalgic
   **Windows XP** (Luna) theme, or a sleek **Modern** theme with flat rounded controls and an indigo
-  accent. **Dark Mode** is a separate toggle layered on top, so any theme can be light or dark. Both
-  choices are remembered between sessions.
+  accent (the accent colour is customisable via **View → Modern Accent Colour…**). **Dark Mode** is a
+  separate toggle layered on top, so any theme can be light or dark. All choices are remembered
+  between sessions.
 * **Background daemon** — run detached with `streamdeck --daemon` (no window needed); stop with
   `streamdeck --daemon-kill` and check with `streamdeck --daemon-status`.
 * **Installer** — `scripts/install.sh` sets everything up into an isolated virtual environment,

@@ -24,6 +24,12 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   beide leicht unterscheidbar.
 * **Medien- & Helligkeitstasten** — ein **Media…**-Menü neben *Press Keys* fügt fertige Multimedia-
   und Helligkeitstasten ein (Lautstärke, Wiedergabe/Pause, vor/zurück, Helligkeit hoch/runter).
+* **Live-Info-Tasten** — ein **Live info**-Auswahlfeld lässt eine Taste statt statischem Text einen
+  sich jede Sekunde aktualisierenden Wert anzeigen: Uhr, Datum, CPU- oder Speicherauslastung, Akku
+  oder Netzwerkdurchsatz (alles direkt aus dem Kernel gelesen, ohne zusätzliche Abhängigkeiten).
+* **Umschalt-/Zyklustasten** — aktivieren Sie **Cycle states on press**, und jeder Tastendruck
+  schaltet die Taste zum nächsten Zustand weiter (mit Umlauf) — so wird eine Taste mit mehreren
+  Zuständen zu einem Umschalter wie Stumm/Laut oder An/Aus.
 * **Seiten-Navigationstasten** — die Schaltflächen **◀ Prev Page** / **Next Page ▶** machen aus
   einer Taste mit einem Klick eine relative Seitenumschaltung (mit Umlauf) und setzen ein
   vorgefertigtes Pfeil-Icon.
@@ -35,9 +41,10 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   lassen die Funktion einfach inaktiv.
 * **Designs** — wählen Sie unter **View** ein Basis-Design: das **Default**-Design (Plattformlook),
   ein nostalgisches **Windows-XP**-Design (Luna) oder ein elegantes **Modern**-Design mit flachen,
-  abgerundeten Bedienelementen und einem Indigo-Akzent. **Dark Mode** ist ein separater Schalter,
-  der über jedem Design liegt, sodass jedes Design hell oder dunkel sein kann. Beide Einstellungen
-  werden zwischen Sitzungen gemerkt.
+  abgerundeten Bedienelementen und einem Indigo-Akzent (die Akzentfarbe ist über **View → Modern
+  Accent Colour…** anpassbar). **Dark Mode** ist ein separater Schalter, der über jedem Design liegt,
+  sodass jedes Design hell oder dunkel sein kann. Alle Einstellungen werden zwischen Sitzungen
+  gemerkt.
 * **Hintergrund-Daemon** — mit `streamdeck --daemon` losgelöst starten (ohne Fenster), mit
   `streamdeck --daemon-kill` beenden und mit `streamdeck --daemon-status` prüfen.
 * **Installationsskript** — `scripts/install.sh` richtet alles in einer isolierten virtuellen
