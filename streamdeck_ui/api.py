@@ -30,6 +30,7 @@ from streamdeck_ui.display.image_filter import ImageFilter
 from streamdeck_ui.display.text_filter import TextFilter
 from streamdeck_ui.logger import logger
 from streamdeck_ui.model import ButtonMultiState, ButtonState, DeckState
+from streamdeck_ui.modules import live
 from streamdeck_ui.stream_deck_monitor import StreamDeckMonitor
 
 
@@ -525,6 +526,46 @@ class StreamDeckServer:
         """Returns the background color set for the specified button"""
         return self._button_state(serial_number, page, button).background_color
 
+    def set_button_live_source(self, serial_number: str, page: int, button: int, source: str) -> None:
+        """Sets the live information source rendered as the button's text.
+
+        When set, the value (clock, CPU usage, …) overrides the button text and
+        is refreshed periodically by the GUI."""
+        if not live.is_live_source(source):
+            source = ""
+        if self.get_button_live_source(serial_number, page, button) != source:
+            self._button_state(serial_number, page, button).live_source = source
+            self._save_state()
+            self._update_button_filters(serial_number, page, button)
+            self.display_handlers[serial_number].synchronize()
+
+    def get_button_live_source(self, serial_number: str, page: int, button: int) -> str:
+        """Returns the live information source set for the specified button."""
+        return self._button_state(serial_number, page, button).live_source
+
+    def refresh_live_buttons(self) -> bool:
+        """Re-renders every live button on each deck's current page.
+
+        The rendered text is recomputed from the live source but not persisted,
+        so this can be called on a timer without writing to the config file.
+        Returns True when at least one live button was refreshed."""
+        refreshed = False
+        for serial_number, deck_state in self.state.items():
+            display_handler = self.display_handlers.get(serial_number)
+            if display_handler is None:
+                continue
+            page = deck_state.page
+            deck_refreshed = False
+            for button, button_state in deck_state.buttons.get(page, {}).items():
+                current = button_state.states.get(button_state.state)
+                if current is not None and live.is_live_source(current.live_source):
+                    self._update_button_filters(serial_number, page, button)
+                    deck_refreshed = True
+            if deck_refreshed:
+                display_handler.synchronize()
+                refreshed = True
+        return refreshed
+
     def get_button_icon_pixmap(self, serial_number: str, page: int, button: int) -> Optional[QPixmap]:
         """Returns the QPixmap value for the given button (streamdeck, page, button)"""
         pil_image = self.display_handlers[serial_number].get_image(page, button)
@@ -739,7 +780,11 @@ class StreamDeckServer:
         if button_settings.icon:
             filters.append(ImageFilter(button_settings.icon))
 
-        if button_settings.text:
+        # A live source (clock, CPU usage, …) overrides the stored text and is
+        # recomputed on every render so timer-driven refreshes stay current.
+        text = live.live_text(button_settings.live_source) if button_settings.live_source else button_settings.text
+
+        if text:
             font_size = button_settings.font_size or DEFAULT_FONT_SIZE
             font_color = button_settings.font_color or DEFAULT_FONT_COLOR
             font = button_settings.font or DEFAULT_FONT
@@ -749,7 +794,7 @@ class StreamDeckServer:
             # add fallback font logic
             filters.append(
                 TextFilter(
-                    button_settings.text,
+                    text,
                     font,
                     font_size,
                     font_color,

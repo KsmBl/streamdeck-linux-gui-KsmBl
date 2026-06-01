@@ -32,6 +32,9 @@ class ButtonState:
     """Font size of the text on the button"""
     background_color: str = ""
     """Background color of the button"""
+    live_source: str = ""
+    """Live information source rendered as the button text (e.g. clock, cpu).
+    When set it overrides ``text`` and is refreshed periodically."""
 
 
 @dataclass

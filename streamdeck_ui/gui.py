@@ -92,6 +92,7 @@ from streamdeck_ui.modules.keyboard import (
     keyboard_write,
     qt_key_to_evdev_name,
 )
+from streamdeck_ui.modules.live import LIVE_SOURCES, is_live_source
 from streamdeck_ui.modules.sample_icons import list_sample_icons
 from streamdeck_ui.modules.theme import (
     THEME_DEFAULT,
@@ -605,6 +606,31 @@ def set_brightness(value: int) -> None:
     api.set_brightness(deck_id, value)
 
 
+def refresh_live_buttons() -> None:
+    """Timer tick: re-render live buttons on each deck and mirror the change in
+    the in-app preview grid for the page currently shown."""
+    if main_window is None:
+        return
+    if not api.refresh_live_buttons():
+        return
+
+    deck_id = _deck()
+    page_id = _page()
+    if deck_id is None or page_id is None:
+        return
+    current_tab = main_window.ui.pages.currentWidget()
+    if current_tab is None:
+        return
+    for button in current_tab.findChildren(QToolButton):
+        if button.isHidden():
+            continue
+        index = button.property("index")
+        if index is not None and is_live_source(api.get_button_live_source(deck_id, page_id, index)):
+            icon = api.get_button_icon_pixmap(deck_id, page_id, index)
+            if icon is not None:
+                button.setIcon(icon)
+
+
 def set_brightness_dimmed(value: int) -> None:
     deck_id = _deck()
     if deck_id is None:
@@ -795,6 +821,13 @@ def build_button_state_form(tab) -> None:
     tab_ui.switch_page.setValue(button_state.switch_page)
     tab_ui.switch_state.setValue(button_state.switch_state)
 
+    with QSignalBlocker(tab_ui.live_source):
+        tab_ui.live_source.clear()
+        for source_key, source_label in LIVE_SOURCES:
+            tab_ui.live_source.addItem(source_label, userData=source_key)
+        current_live = tab_ui.live_source.findData(button_state.live_source)
+        tab_ui.live_source.setCurrentIndex(current_live if current_live >= 0 else 0)
+
     font_family, font_style = find_font_info(button_state.font or DEFAULT_FONT_FALLBACK_PATH)
     prepare_button_state_form_text_font_list(tab_ui, font_family)
     prepare_button_state_form_text_font_style_list(tab_ui, font_family, font_style)
@@ -832,6 +865,7 @@ def build_button_state_form(tab) -> None:
     tab_ui.text_h_align.clicked.connect(partial(update_align_text_horizontal))
     tab_ui.text_v_align.clicked.connect(partial(update_align_text_vertical))
     tab_ui.test_action.clicked.connect(test_selected_button)
+    tab_ui.live_source.currentIndexChanged.connect(partial(update_live_source, tab_ui))
 
 
 def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
@@ -857,6 +891,7 @@ def enable_button_configuration(ui: Ui_ButtonForm, enabled: bool):
     ui.text_h_align.setEnabled(enabled)
     ui.text_v_align.setEnabled(enabled)
     ui.test_action.setEnabled(enabled)
+    ui.live_source.setEnabled(enabled)
     ui.text_color.setEnabled(enabled)
     ui.background_color.setEnabled(enabled)
     # default black color looks like it's enabled even when it's not
@@ -1851,6 +1886,13 @@ def update_displayed_button_attribute(attribute: str, value: Union[str, int]) ->
         selected_button.setIcon(icon)
 
 
+def update_live_source(tab_ui: Ui_ButtonForm, _index: int = 0) -> None:
+    """Applies the chosen live information source to the selected button and
+    refreshes its preview so the live value (or restored text) shows at once."""
+    source = tab_ui.live_source.currentData() or ""
+    update_displayed_button_attribute("live_source", source)
+
+
 def update_button_attribute(attribute: str, value: Union[str, int]) -> bool:
     """
     Updates the given attribute for the currently selected button.
@@ -2217,6 +2259,14 @@ def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     api.plugevents.attached.connect(partial(streamdeck_attached, ui))
     api.plugevents.detached.connect(partial(streamdeck_detached, ui))
     api.plugevents.cpu_changed.connect(partial(streamdeck_cpu_changed, ui))
+
+    # Refresh live buttons (clock, CPU, …) once a second. Parented to the window
+    # so its lifetime is tied to it; it is a no-op when no live buttons exist.
+    live_timer = QTimer(main_window)
+    live_timer.setInterval(1000)
+    live_timer.timeout.connect(refresh_live_buttons)
+    live_timer.start()
+    main_window.live_timer = live_timer  # type: ignore[attr-defined]
 
     return main_window
 

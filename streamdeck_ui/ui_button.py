@@ -409,6 +409,14 @@ class Ui_ButtonForm(object):
 
         self.formLayout.setWidget(12, QFormLayout.FieldRole, self.test_action)
 
+        self.label_live = QLabel(ButtonForm)
+        self.label_live.setObjectName(u"label_live")
+        self.live_source = QComboBox(ButtonForm)
+        self.live_source.setObjectName(u"live_source")
+        # Inserted just above the Test action button so it sits with the other
+        # button configuration fields.
+        self.formLayout.insertRow(12, self.label_live, self.live_source)
+
 
         self.retranslateUi(ButtonForm)
 
@@ -489,5 +497,9 @@ class Ui_ButtonForm(object):
         self.test_action.setToolTip(QCoreApplication.translate("ButtonForm", u"Run this button's action now to test it", None))
 #endif // QT_CONFIG(tooltip)
         self.test_action.setText(QCoreApplication.translate("ButtonForm", u"Test action", None))
+        self.label_live.setText(QCoreApplication.translate("ButtonForm", u"Live info:", None))
+#if QT_CONFIG(tooltip)
+        self.live_source.setToolTip(QCoreApplication.translate("ButtonForm", u"Show live information (clock, CPU, battery…) as the button text", None))
+#endif // QT_CONFIG(tooltip)
     # retranslateUi
 
