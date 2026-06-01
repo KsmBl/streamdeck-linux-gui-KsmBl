@@ -5,91 +5,100 @@ from PySide6.QtWidgets import QApplication
 from streamdeck_ui import gui
 
 
+def _palette_color(role=QPalette.ColorRole.Window):
+    return QApplication.instance().palette().color(role)
+
+
 @pytest.mark.serial
-def test_dark_mode_action_present(api_and_window):
-    """The View menu exposes a checkable Dark Mode action."""
+def test_view_menu_theme_actions_present(api_and_window):
+    """The View menu exposes the three base-theme actions plus a Dark Mode toggle."""
     main_window, _api = api_and_window
-    assert main_window.ui.menuView.title() == "View"
-    assert main_window.ui.actionDarkMode.isCheckable()
+    ui = main_window.ui
+    assert ui.menuView.title() == "View"
+    assert ui.actionThemeDefault.isCheckable()
+    assert ui.actionThemeXP.isCheckable()
+    assert ui.actionThemeModern.isCheckable()
+    assert ui.actionDarkMode.isCheckable()
+
+
+@pytest.mark.serial
+def test_base_themes_are_mutually_exclusive(api_and_window, mocker):
+    """Choosing a base theme unchecks the others (an exclusive choice)."""
+    main_window, _api = api_and_window
+    mocker.patch.object(gui, "set_theme")
+    ui = main_window.ui
+
+    ui.actionThemeXP.trigger()
+    assert ui.actionThemeXP.isChecked() is True
+    assert ui.actionThemeDefault.isChecked() is False
+    assert ui.actionThemeModern.isChecked() is False
+
+    ui.actionThemeModern.trigger()
+    assert ui.actionThemeModern.isChecked() is True
+    assert ui.actionThemeXP.isChecked() is False
+
+
+@pytest.mark.serial
+def test_select_modern_theme_applies_and_persists(api_and_window, mocker):
+    """Selecting the modern theme applies its accent and persists the choice."""
+    main_window, _api = api_and_window
+    theme_spy = mocker.patch.object(gui, "set_theme")
+
+    main_window.ui.actionDarkMode.setChecked(False)
+    main_window.ui.actionThemeModern.trigger()
+
+    highlight = _palette_color(QPalette.ColorRole.Highlight)
+    assert (highlight.red(), highlight.green(), highlight.blue()) == (79, 70, 229)
+    theme_spy.assert_called_with(main_window.settings, gui.THEME_MODERN)
+
+
+@pytest.mark.serial
+def test_select_xp_theme_applies_luna_beige(api_and_window, mocker):
+    """Selecting the Windows XP theme applies the Luna beige surface."""
+    main_window, _api = api_and_window
+    mocker.patch.object(gui, "set_theme")
+
+    main_window.ui.actionDarkMode.setChecked(False)
+    main_window.ui.actionThemeXP.trigger()
+
+    window = _palette_color()
+    assert (window.red(), window.green(), window.blue()) == (236, 233, 216)
 
 
 @pytest.mark.serial
 def test_toggle_dark_mode_applies_and_persists(api_and_window, mocker):
-    """Toggling the action applies a dark palette and persists the preference."""
+    """Toggling Dark Mode over the default theme darkens it and persists."""
     main_window, _api = api_and_window
-
-    # Avoid writing to the real user QSettings during the test.
+    mocker.patch.object(gui, "set_theme")
     persist_spy = mocker.patch.object(gui, "set_dark_mode_enabled")
 
-    # Establish a deterministic baseline (the saved preference may start it on).
+    main_window.ui.actionThemeDefault.trigger()
     main_window.ui.actionDarkMode.setChecked(False)
 
     main_window.ui.actionDarkMode.setChecked(True)
-    dark_window = QApplication.instance().palette().color(QPalette.ColorRole.Window)
-    assert dark_window.lightness() < 128
+    assert _palette_color().lightness() < 128
     persist_spy.assert_called_with(main_window.settings, True)
 
     main_window.ui.actionDarkMode.setChecked(False)
+    assert QApplication.instance().styleSheet() == ""
     persist_spy.assert_called_with(main_window.settings, False)
 
 
 @pytest.mark.serial
-def test_xp_theme_action_present(api_and_window):
-    """The View menu exposes a checkable Windows XP theme action."""
+def test_dark_mode_layers_over_any_theme(api_and_window, mocker):
+    """Dark Mode darkens whichever base theme is selected, keeping its style."""
     main_window, _api = api_and_window
-    assert main_window.ui.actionXPTheme.isCheckable()
-
-
-@pytest.mark.serial
-def test_modern_theme_action_present(api_and_window):
-    """The View menu exposes a checkable modern theme action."""
-    main_window, _api = api_and_window
-    assert main_window.ui.actionModernTheme.isCheckable()
-
-
-@pytest.mark.serial
-def test_modern_theme_excludes_other_themes(api_and_window, mocker):
-    """Enabling the modern theme applies its look and turns the others off."""
-    main_window, _api = api_and_window
-
+    mocker.patch.object(gui, "set_theme")
     mocker.patch.object(gui, "set_dark_mode_enabled")
-    mocker.patch.object(gui, "set_xp_theme_enabled")
-    mocker.patch.object(gui, "set_modern_theme_enabled")
-
-    main_window.ui.actionModernTheme.setChecked(False)
-    main_window.ui.actionXPTheme.setChecked(False)
-    main_window.ui.actionDarkMode.setChecked(True)
-
-    main_window.ui.actionModernTheme.setChecked(True)
-    assert main_window.ui.actionDarkMode.isChecked() is False
-    assert main_window.ui.actionXPTheme.isChecked() is False
-
-    highlight = QApplication.instance().palette().color(QPalette.ColorRole.Highlight)
-    assert (highlight.red(), highlight.green(), highlight.blue()) == (79, 70, 229)
-
-    main_window.ui.actionModernTheme.setChecked(False)
-    assert QApplication.instance().styleSheet() == ""
-
-
-@pytest.mark.serial
-def test_xp_theme_and_dark_mode_are_mutually_exclusive(api_and_window, mocker):
-    """Enabling one theme turns the other off and applies the right look."""
-    main_window, _api = api_and_window
-
-    mocker.patch.object(gui, "set_dark_mode_enabled")
-    mocker.patch.object(gui, "set_xp_theme_enabled")
 
     main_window.ui.actionDarkMode.setChecked(False)
-    main_window.ui.actionXPTheme.setChecked(False)
-
-    # Turn on dark mode, then the XP theme: dark mode must switch off.
+    main_window.ui.actionThemeModern.trigger()
     main_window.ui.actionDarkMode.setChecked(True)
-    main_window.ui.actionXPTheme.setChecked(True)
-    assert main_window.ui.actionDarkMode.isChecked() is False
 
-    window = QApplication.instance().palette().color(QPalette.ColorRole.Window)
-    assert (window.red(), window.green(), window.blue()) == (236, 233, 216)
-
-    # Turning the XP theme back off restores the default look.
-    main_window.ui.actionXPTheme.setChecked(False)
-    assert QApplication.instance().styleSheet() == ""
+    # The base theme is still selected and its stylesheet still applies...
+    assert main_window.ui.actionThemeModern.isChecked() is True
+    assert "border-radius" in QApplication.instance().styleSheet()
+    # ...but the surface is now dark with the modern dark accent.
+    assert _palette_color().lightness() < 128
+    highlight = _palette_color(QPalette.ColorRole.Highlight)
+    assert (highlight.red(), highlight.green(), highlight.blue()) == (99, 102, 241)

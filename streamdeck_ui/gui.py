@@ -10,7 +10,18 @@ from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 from importlib_metadata import PackageNotFoundError, version
 from PySide6.QtCore import QMimeData, QSettings, QSignalBlocker, QSize, Qt, QTimer, QUrl
-from PySide6.QtGui import QAction, QColor, QDesktopServices, QDrag, QFont, QIcon, QKeySequence, QPalette, QShortcut
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QColor,
+    QDesktopServices,
+    QDrag,
+    QFont,
+    QIcon,
+    QKeySequence,
+    QPalette,
+    QShortcut,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -83,13 +94,14 @@ from streamdeck_ui.modules.keyboard import (
 )
 from streamdeck_ui.modules.sample_icons import list_sample_icons
 from streamdeck_ui.modules.theme import (
+    THEME_DEFAULT,
+    THEME_MODERN,
+    THEME_XP,
     apply_theme,
+    get_theme,
     is_dark_mode_enabled,
-    is_modern_theme_enabled,
-    is_xp_theme_enabled,
     set_dark_mode_enabled,
-    set_modern_theme_enabled,
-    set_xp_theme_enabled,
+    set_theme,
 )
 from streamdeck_ui.modules.utils.timers import debounce
 from streamdeck_ui.semaphore import Semaphore, SemaphoreAcquireError
@@ -1933,77 +1945,41 @@ def change_brightness_all(amount: int) -> None:
         api.change_brightness(deck_id, amount)
 
 
-def _apply_selected_theme() -> None:
-    """Applies the theme indicated by the View-menu action check states."""
+def _selected_theme_name() -> str:
+    """Returns the theme key for the currently checked View-menu theme action."""
+    ui = main_window.ui
+    if ui.actionThemeXP.isChecked():
+        return THEME_XP
+    if ui.actionThemeModern.isChecked():
+        return THEME_MODERN
+    return THEME_DEFAULT
+
+
+def _apply_current_theme() -> None:
+    """Applies the selected base theme together with the dark-mode toggle."""
     app = QApplication.instance()
     if app is None or main_window is None:
         return
-    apply_theme(
-        app,
-        dark=main_window.ui.actionDarkMode.isChecked(),
-        xp=main_window.ui.actionXPTheme.isChecked(),
-        modern=main_window.ui.actionModernTheme.isChecked(),
-    )
+    apply_theme(app, _selected_theme_name(), main_window.ui.actionDarkMode.isChecked())
 
 
-def _deactivate_other_themes(active_action) -> None:
-    """Un-checks and un-persists every theme action except the active one, so
-    that only a single theme is ever enabled at a time."""
-    ui = main_window.ui
-    # Resolved here (not captured earlier) so test-patched setters are honoured.
-    others = [
-        (ui.actionDarkMode, set_dark_mode_enabled),
-        (ui.actionXPTheme, set_xp_theme_enabled),
-        (ui.actionModernTheme, set_modern_theme_enabled),
-    ]
-    for action, setter in others:
-        if action is not active_action and action.isChecked():
-            action.blockSignals(True)
-            action.setChecked(False)
-            action.blockSignals(False)
-            setter(main_window.settings, False)
+def select_theme(theme: str, _checked: bool = False) -> None:
+    """Applies and persists the chosen base theme (default / XP / modern).
+
+    The base theme is independent of dark mode, which is applied on top."""
+    if main_window is None:
+        return
+    _apply_current_theme()
+    set_theme(main_window.settings, theme)
 
 
 def toggle_dark_mode(checked: bool) -> None:
-    """Applies and persists the dark mode preference. The themes are mutually
-    exclusive, so enabling one turns the others off."""
+    """Applies and persists dark mode. Dark mode darkens whichever base theme is
+    currently selected, so it is independent of the theme choice."""
     if main_window is None:
-        app = QApplication.instance()
-        if app is not None:
-            apply_theme(app, dark=checked)
         return
-    if checked:
-        _deactivate_other_themes(main_window.ui.actionDarkMode)
-    _apply_selected_theme()
+    _apply_current_theme()
     set_dark_mode_enabled(main_window.settings, checked)
-
-
-def toggle_xp_theme(checked: bool) -> None:
-    """Applies and persists the Windows XP theme preference. The themes are
-    mutually exclusive, so enabling one turns the others off."""
-    if main_window is None:
-        app = QApplication.instance()
-        if app is not None:
-            apply_theme(app, xp=checked)
-        return
-    if checked:
-        _deactivate_other_themes(main_window.ui.actionXPTheme)
-    _apply_selected_theme()
-    set_xp_theme_enabled(main_window.settings, checked)
-
-
-def toggle_modern_theme(checked: bool) -> None:
-    """Applies and persists the modern theme preference. The themes are mutually
-    exclusive, so enabling one turns the others off."""
-    if main_window is None:
-        app = QApplication.instance()
-        if app is not None:
-            apply_theme(app, modern=checked)
-        return
-    if checked:
-        _deactivate_other_themes(main_window.ui.actionModernTheme)
-    _apply_selected_theme()
-    set_modern_theme_enabled(main_window.settings, checked)
 
 
 def _switch_to_page(ui, deck_id: str, target_page: int) -> None:
@@ -2201,12 +2177,24 @@ def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     ui.actionAbout.triggered.connect(main_window.about_dialog)
     ui.actionDocs.triggered.connect(browse_documentation)
     ui.actionGithub.triggered.connect(browse_github)
+    # The three base themes are an exclusive choice; dark mode is a separate
+    # toggle layered on top of whichever theme is selected.
+    theme_group = QActionGroup(main_window)
+    theme_group.setExclusive(True)
+    theme_group.addAction(ui.actionThemeDefault)
+    theme_group.addAction(ui.actionThemeXP)
+    theme_group.addAction(ui.actionThemeModern)
+    theme_actions = {
+        THEME_DEFAULT: ui.actionThemeDefault,
+        THEME_XP: ui.actionThemeXP,
+        THEME_MODERN: ui.actionThemeModern,
+    }
+    theme_actions.get(get_theme(main_window.settings), ui.actionThemeDefault).setChecked(True)
+    ui.actionThemeDefault.triggered.connect(partial(select_theme, THEME_DEFAULT))
+    ui.actionThemeXP.triggered.connect(partial(select_theme, THEME_XP))
+    ui.actionThemeModern.triggered.connect(partial(select_theme, THEME_MODERN))
     ui.actionDarkMode.setChecked(is_dark_mode_enabled(main_window.settings))
     ui.actionDarkMode.toggled.connect(toggle_dark_mode)
-    ui.actionXPTheme.setChecked(is_xp_theme_enabled(main_window.settings))
-    ui.actionXPTheme.toggled.connect(toggle_xp_theme)
-    ui.actionModernTheme.setChecked(is_modern_theme_enabled(main_window.settings))
-    ui.actionModernTheme.toggled.connect(toggle_modern_theme)
     ui.page_settings.clicked.connect(partial(show_page_settings, main_window))
     ui.settingsButton.setEnabled(False)
     ui.button_states.clear()
@@ -2419,9 +2407,8 @@ def start(_exit: bool = False) -> None:
             startup_settings = QSettings("streamdeck-ui", "streamdeck-ui")
             apply_theme(
                 app,
-                dark=is_dark_mode_enabled(startup_settings),
-                xp=is_xp_theme_enabled(startup_settings),
-                modern=is_modern_theme_enabled(startup_settings),
+                get_theme(startup_settings),
+                is_dark_mode_enabled(startup_settings),
             )
 
             main_window = create_main_window(api, app)

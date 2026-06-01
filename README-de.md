@@ -31,10 +31,11 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   steht im Seitenreiter. Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit
   `kdotool`); Compositoren, die das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland),
   lassen die Funktion einfach inaktiv.
-* **Designs** — wählen Sie unter **View** das Aussehen der Oberfläche: einen **Dark Mode**, ein
-  nostalgisches **Windows-XP**-Design (Luna) und ein elegantes **Modern**-Design mit flachen,
-  abgerundeten Bedienelementen und einem Indigo-Akzent. Die Designs schließen sich gegenseitig aus,
-  und Ihre Wahl wird zwischen Sitzungen gemerkt.
+* **Designs** — wählen Sie unter **View** ein Basis-Design: das **Default**-Design (Plattformlook),
+  ein nostalgisches **Windows-XP**-Design (Luna) oder ein elegantes **Modern**-Design mit flachen,
+  abgerundeten Bedienelementen und einem Indigo-Akzent. **Dark Mode** ist ein separater Schalter,
+  der über jedem Design liegt, sodass jedes Design hell oder dunkel sein kann. Beide Einstellungen
+  werden zwischen Sitzungen gemerkt.
 * **Hintergrund-Daemon** — mit `streamdeck --daemon` losgelöst starten (ohne Fenster), mit
   `streamdeck --daemon-kill` beenden und mit `streamdeck --daemon-status` prüfen.
 * **Installationsskript** — `scripts/install.sh` richtet alles in einer isolierten virtuellen
