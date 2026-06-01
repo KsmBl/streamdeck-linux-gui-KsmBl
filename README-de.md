@@ -25,8 +25,9 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
 * **Medien- & Helligkeitstasten** — ein **Media…**-Menü neben *Press Keys* fügt fertige Multimedia-
   und Helligkeitstasten ein (Lautstärke, Wiedergabe/Pause, vor/zurück, Helligkeit hoch/runter).
 * **Live-Info-Tasten** — ein **Live info**-Auswahlfeld lässt eine Taste statt statischem Text einen
-  sich jede Sekunde aktualisierenden Wert anzeigen: Uhr, Datum, CPU- oder Speicherauslastung, Akku
-  oder Netzwerkdurchsatz (alles direkt aus dem Kernel gelesen, ohne zusätzliche Abhängigkeiten).
+  sich jede Sekunde aktualisierenden Wert anzeigen: Uhr, Datum, CPU-Auslastung, CPU-Temperatur,
+  Speicherauslastung, Akku oder Netzwerkdurchsatz (alles direkt aus dem Kernel gelesen, ohne
+  zusätzliche Abhängigkeiten).
 * **Umschalt-/Zyklustasten** — aktivieren Sie **Cycle states on press**, und jeder Tastendruck
   schaltet die Taste zum nächsten Zustand weiter (mit Umlauf) — so wird eine Taste mit mehreren
   Zuständen zu einem Umschalter wie Stumm/Laut oder An/Aus.

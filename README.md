@@ -24,8 +24,8 @@ credit for the original work goes to its authors and contributors.
 * **Media & brightness key presets** — a **Media…** menu next to *Press Keys* inserts ready-made
   multimedia and brightness key actions (volume, play/pause, next/previous, brightness up/down).
 * **Live info buttons** — a **Live info** dropdown makes a key show a value that updates every
-  second instead of static text: clock, date, CPU or memory usage, battery, or network throughput
-  (all read straight from the kernel, no extra dependencies).
+  second instead of static text: clock, date, CPU usage, CPU temperature, memory usage, battery, or
+  network throughput (all read straight from the kernel, no extra dependencies).
 * **Toggle / cycle keys** — tick **Cycle states on press** and each press advances the key to its
   next state (wrapping), turning a multi-state key into a toggle such as mute/unmute or on/off.
 * **Page navigation keys** — one-click **◀ Prev Page** / **Next Page ▶** buttons turn a key into a

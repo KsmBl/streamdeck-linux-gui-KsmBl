@@ -21,6 +21,7 @@ LIVE_SOURCES: List[Tuple[str, str]] = [
     ("date", "Date"),
     ("datetime", "Date & time"),
     ("cpu", "CPU usage"),
+    ("cpu_temp", "CPU temperature"),
     ("memory", "Memory usage"),
     ("battery", "Battery"),
     ("network", "Network speed"),
@@ -58,6 +59,65 @@ def _read_cpu_percent() -> str:
         return "CPU …"
     busy = 100.0 * (1.0 - (idle - prev_idle) / delta_total)
     return f"CPU\n{max(0.0, min(100.0, busy)):.0f}%"
+
+
+# hwmon sensor names that report a CPU package temperature, most specific first.
+_CPU_HWMON_NAMES = ("coretemp", "k10temp", "zenpower", "cpu_thermal", "acpitz")
+# thermal_zone types that report a CPU temperature, most specific first.
+_CPU_ZONE_TYPES = ("x86_pkg_temp", "cpu-thermal", "cpu_thermal", "acpitz")
+
+
+def _read_first_temp_milli() -> int:
+    """Returns a CPU temperature in milli-degrees Celsius, or -1 if unavailable.
+
+    Prefers a dedicated CPU sensor under /sys/class/hwmon, then falls back to a
+    matching /sys/class/thermal zone."""
+    hwmon_base = "/sys/class/hwmon"
+    by_name = {}
+    try:
+        for entry in os.listdir(hwmon_base):
+            path = os.path.join(hwmon_base, entry)
+            try:
+                with open(os.path.join(path, "name")) as handle:
+                    by_name[handle.read().strip()] = path
+            except OSError:
+                continue
+    except OSError:
+        by_name = {}
+    for name in _CPU_HWMON_NAMES:
+        sensor_path = by_name.get(name)
+        if sensor_path:
+            value = _read_int_file(os.path.join(sensor_path, "temp1_input"))
+            if value > 0:
+                return value
+
+    thermal_base = "/sys/class/thermal"
+    by_type = {}
+    try:
+        for entry in os.listdir(thermal_base):
+            path = os.path.join(thermal_base, entry)
+            try:
+                with open(os.path.join(path, "type")) as handle:
+                    by_type[handle.read().strip()] = path
+            except OSError:
+                continue
+    except OSError:
+        by_type = {}
+    for zone_type in _CPU_ZONE_TYPES:
+        zone_path = by_type.get(zone_type)
+        if zone_path:
+            value = _read_int_file(os.path.join(zone_path, "temp"))
+            if value > 0:
+                return value
+    return -1
+
+
+def _read_cpu_temp() -> str:
+    """Returns the CPU temperature in degrees Celsius."""
+    milli = _read_first_temp_milli()
+    if milli < 0:
+        return "TEMP --"
+    return f"CPU\n{round(milli / 1000)}°C"
 
 
 def _read_memory_percent() -> str:
@@ -175,6 +235,8 @@ def live_text(source: str) -> str:
         return datetime.now().strftime("%H:%M\n%d %b")
     if source == "cpu":
         return _read_cpu_percent()
+    if source == "cpu_temp":
+        return _read_cpu_temp()
     if source == "memory":
         return _read_memory_percent()
     if source == "battery":

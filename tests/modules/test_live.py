@@ -24,7 +24,7 @@ def test_clock_matches_time_format():
 def test_metric_sources_return_non_empty_text():
     # These read from /proc and /sys; on the first call rate metrics may show a
     # placeholder, but they must always return some text to render.
-    for key in ("date", "datetime", "cpu", "memory", "battery", "network"):
+    for key in ("date", "datetime", "cpu", "cpu_temp", "memory", "battery", "network"):
         assert live.live_text(key)
 
 
