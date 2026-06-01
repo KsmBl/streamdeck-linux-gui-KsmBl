@@ -29,7 +29,9 @@ credit for the original work goes to its authors and contributors.
   deck to the last page you chose yourself. The bound app is shown in the page tab. Detection works
   on X11, Sway and Hyprland (and KDE with `kdotool`); compositors that don't expose the focused
   window (e.g. GNOME Wayland) simply leave it inactive.
-* **Dark mode** — a dark interface theme under **View → Dark Mode**, remembered between sessions.
+* **Themes** — pick the interface look under **View**: a **Dark Mode**, a nostalgic
+  **Windows XP** (Luna) theme, and a sleek **Modern** theme with flat rounded controls and an
+  indigo accent. The themes are mutually exclusive and your choice is remembered between sessions.
 * **Background daemon** — run detached with `streamdeck --daemon` (no window needed); stop with
   `streamdeck --daemon-kill` and check with `streamdeck --daemon-status`.
 * **Installer** — `scripts/install.sh` sets everything up into an isolated virtual environment,

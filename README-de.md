@@ -31,8 +31,10 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   steht im Seitenreiter. Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit
   `kdotool`); Compositoren, die das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland),
   lassen die Funktion einfach inaktiv.
-* **Dunkles Design** — ein dunkles Oberflächendesign unter **View → Dark Mode**, das zwischen
-  Sitzungen gemerkt wird.
+* **Designs** — wählen Sie unter **View** das Aussehen der Oberfläche: einen **Dark Mode**, ein
+  nostalgisches **Windows-XP**-Design (Luna) und ein elegantes **Modern**-Design mit flachen,
+  abgerundeten Bedienelementen und einem Indigo-Akzent. Die Designs schließen sich gegenseitig aus,
+  und Ihre Wahl wird zwischen Sitzungen gemerkt.
 * **Hintergrund-Daemon** — mit `streamdeck --daemon` losgelöst starten (ohne Fenster), mit
   `streamdeck --daemon-kill` beenden und mit `streamdeck --daemon-status` prüfen.
 * **Installationsskript** — `scripts/install.sh` richtet alles in einer isolierten virtuellen

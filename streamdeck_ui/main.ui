@@ -371,6 +371,7 @@
     </property>
     <addaction name="actionDarkMode"/>
     <addaction name="actionXPTheme"/>
+    <addaction name="actionModernTheme"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -430,6 +431,14 @@
    </property>
    <property name="text">
     <string>Windows XP Theme</string>
+   </property>
+  </action>
+  <action name="actionModernTheme">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Modern Theme</string>
    </property>
   </action>
  </widget>

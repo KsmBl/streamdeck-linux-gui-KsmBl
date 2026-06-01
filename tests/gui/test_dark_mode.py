@@ -41,6 +41,37 @@ def test_xp_theme_action_present(api_and_window):
 
 
 @pytest.mark.serial
+def test_modern_theme_action_present(api_and_window):
+    """The View menu exposes a checkable modern theme action."""
+    main_window, _api = api_and_window
+    assert main_window.ui.actionModernTheme.isCheckable()
+
+
+@pytest.mark.serial
+def test_modern_theme_excludes_other_themes(api_and_window, mocker):
+    """Enabling the modern theme applies its look and turns the others off."""
+    main_window, _api = api_and_window
+
+    mocker.patch.object(gui, "set_dark_mode_enabled")
+    mocker.patch.object(gui, "set_xp_theme_enabled")
+    mocker.patch.object(gui, "set_modern_theme_enabled")
+
+    main_window.ui.actionModernTheme.setChecked(False)
+    main_window.ui.actionXPTheme.setChecked(False)
+    main_window.ui.actionDarkMode.setChecked(True)
+
+    main_window.ui.actionModernTheme.setChecked(True)
+    assert main_window.ui.actionDarkMode.isChecked() is False
+    assert main_window.ui.actionXPTheme.isChecked() is False
+
+    highlight = QApplication.instance().palette().color(QPalette.ColorRole.Highlight)
+    assert (highlight.red(), highlight.green(), highlight.blue()) == (79, 70, 229)
+
+    main_window.ui.actionModernTheme.setChecked(False)
+    assert QApplication.instance().styleSheet() == ""
+
+
+@pytest.mark.serial
 def test_xp_theme_and_dark_mode_are_mutually_exclusive(api_and_window, mocker):
     """Enabling one theme turns the other off and applies the right look."""
     main_window, _api = api_and_window

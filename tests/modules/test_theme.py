@@ -72,3 +72,38 @@ def test_apply_xp_theme_sets_luna_look(qapp):
     theme.apply_theme(qapp, xp=False)
     # Disabling the theme clears the stylesheet again.
     assert qapp.styleSheet() == ""
+
+
+def test_modern_theme_setting_defaults_to_off(tmp_path):
+    settings = _temp_settings(tmp_path)
+    assert theme.is_modern_theme_enabled(settings) is False
+
+
+def test_modern_theme_setting_roundtrip(tmp_path):
+    settings = _temp_settings(tmp_path)
+
+    theme.set_modern_theme_enabled(settings, True)
+    assert theme.is_modern_theme_enabled(settings) is True
+
+    theme.set_modern_theme_enabled(settings, False)
+    assert theme.is_modern_theme_enabled(settings) is False
+
+
+def test_apply_modern_theme_sets_sleek_look(qapp):
+    theme._default_palette = None
+    theme._default_style = None
+    qapp.setPalette(QPalette(QColor(240, 240, 240)))
+
+    theme.apply_theme(qapp, modern=True)
+
+    window = qapp.palette().color(QPalette.ColorRole.Window)
+    # The modern canvas is the soft off-white #F7F8FA.
+    assert (window.red(), window.green(), window.blue()) == (247, 248, 250)
+    # The accent drives the selection highlight (#4F46E5 indigo).
+    highlight = qapp.palette().color(QPalette.ColorRole.Highlight)
+    assert (highlight.red(), highlight.green(), highlight.blue()) == (79, 70, 229)
+    # The modern theme applies a full stylesheet.
+    assert "border-radius" in qapp.styleSheet()
+
+    theme.apply_theme(qapp, modern=False)
+    assert qapp.styleSheet() == ""
