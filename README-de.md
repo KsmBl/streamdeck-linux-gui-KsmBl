@@ -35,6 +35,14 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
 * **Seiten-Navigationstasten** — die Schaltflächen **◀ Prev Page** / **Next Page ▶** machen aus
   einer Taste mit einem Klick eine relative Seitenumschaltung (mit Umlauf) und setzen ein
   vorgefertigtes Pfeil-Icon.
+* **Steuerungs-Vorlagen für Anwendungen** — eine Schaltfläche **Controls…** über den Seiten füllt die
+  aktuelle Seite mit einem Klick mit einer fertigen Steuerflächen-Vorlage für ein Programm:
+  **Firefox**, **Vivaldi**, **Thunar**, **Vim** oder einen **Medienplayer**. Jede Vorlage legt
+  beschriftete Tasten mit Icon an (Neuer Tab, Zurück, Neu laden, Speichern, …), die das Programm über
+  seine Tastenkürzel (bzw. die globalen Medientasten) steuern; die passenden Font-Awesome-Icons werden
+  automatisch gesetzt, sofern die Schrift installiert ist. Programmkürzel wirken auf das jeweils
+  fokussierte Fenster — kombinieren Sie eine Vorlage mit der *Anwendung-pro-Seite*-Bindung, um
+  automatisch dorthin zu wechseln.
 * **Anwendung pro Seite** — binden Sie eine Seite an ein Programm (über das Zahnrad der Seite); sie
   wird automatisch angezeigt, sobald dieses Programm den Fokus hat. Wird ein Programm ohne eigene
   Seite fokussiert, kehrt das Deck zur zuletzt selbst gewählten Seite zurück. Das gebundene Programm

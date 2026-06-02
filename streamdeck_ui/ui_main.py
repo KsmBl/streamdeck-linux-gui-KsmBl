@@ -118,6 +118,11 @@ class Ui_MainWindow(object):
 
         self.pageActions.addItem(self.horizontalSpacer)
 
+        self.apply_preset = QPushButton(self.centralwidget)
+        self.apply_preset.setObjectName(u"apply_preset")
+
+        self.pageActions.addWidget(self.apply_preset)
+
         self.page_settings = QPushButton(self.centralwidget)
         self.page_settings.setObjectName(u"page_settings")
         icon_gear = QIcon()
@@ -279,6 +284,8 @@ class Ui_MainWindow(object):
         self.settingsButton.setText("")
         self.cpu_usage.setFormat("")
 #if QT_CONFIG(tooltip)
+        self.apply_preset.setToolTip(QCoreApplication.translate("MainWindow", u"Fill this page with controls for an application (Firefox, Vivaldi, Thunar, Vim, media player)", None))
+        self.apply_preset.setText(QCoreApplication.translate("MainWindow", u"Controls…", None))
         self.page_settings.setToolTip(QCoreApplication.translate("MainWindow", u"Page settings (bind to a focused application)", None))
 #endif // QT_CONFIG(tooltip)
         self.page_settings.setText("")

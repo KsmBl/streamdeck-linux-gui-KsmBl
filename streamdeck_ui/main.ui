@@ -163,6 +163,16 @@
            </spacer>
           </item>
           <item>
+           <widget class="QPushButton" name="apply_preset">
+            <property name="toolTip">
+             <string>Fill this page with controls for an application (Firefox, Vivaldi, Thunar, Vim, media player)</string>
+            </property>
+            <property name="text">
+             <string>Controls…</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="page_settings">
             <property name="toolTip">
              <string>Page settings (bind to a focused application)</string>

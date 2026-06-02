@@ -31,6 +31,13 @@ credit for the original work goes to its authors and contributors.
   next state (wrapping), turning a multi-state key into a toggle such as mute/unmute or on/off.
 * **Page navigation keys** — one-click **◀ Prev Page** / **Next Page ▶** buttons turn a key into a
   relative page switch (with wrap-around) and apply a premade arrow icon.
+* **Application control presets** — a **Controls…** button above the pages fills the current page in
+  one click with a ready-made control surface for an application: **Firefox**, **Vivaldi**, **Thunar**,
+  **Vim** or a **media player**. Each preset lays out labelled, icon-bearing keys (New Tab, Back,
+  Reload, Save, …) that drive the app through its keyboard shortcuts (or the global media keys); the
+  matching Font Awesome icons are applied automatically when the font is installed. Application shortcuts
+  act on whichever window is focused, so pair a preset with *per-page application binding* to switch
+  to it automatically.
 * **Per-page application binding** — bind a page to an application (via the page's gear button) and
   it is shown automatically whenever that app is focused; focusing an app with no page returns the
   deck to the last page you chose yourself. The bound app is shown in the page tab. Detection works

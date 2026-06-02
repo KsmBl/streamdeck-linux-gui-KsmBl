@@ -419,6 +419,10 @@ class StreamDeckServer:
         self._update_button_filters(serial_number, page, button)
         self.display_handlers[serial_number].synchronize()
 
+    def get_page_button_count(self, serial_number: str, page: int) -> int:
+        """Returns the number of buttons on the given page."""
+        return len(self.state[serial_number].buttons[page])
+
     def clear_button(self, serial_number: str, page: int, button: int) -> None:
         """Resets a button to its default (empty) state."""
         self.state[serial_number].buttons[page][button] = ButtonMultiState(state=0, states={0: ButtonState()})

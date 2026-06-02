@@ -74,14 +74,18 @@ from streamdeck_ui.modules.applications import (
     load_application_qicon,
     resolve_icon_to_file,
 )
+from streamdeck_ui.modules.control_presets import CONTROL_PRESETS, ControlPreset
 from streamdeck_ui.modules.daemon import daemonize, kill_daemon, remove_pid_file, running_pid, write_pid_file
 from streamdeck_ui.modules.focus import FocusWatcher, get_focused_app, list_open_apps
 from streamdeck_ui.modules.font_icons import (
     build_browser_icons,
     build_font_awesome_brand_icons,
     build_font_awesome_icons,
+    build_nerd_font_icons,
     find_font_awesome_fonts,
+    find_nerd_fonts,
     recolor_icon,
+    render_named_solid_icon,
 )
 from streamdeck_ui.modules.fonts import DEFAULT_FONT_FAMILY, FONTS_DICT, find_font_info
 from streamdeck_ui.modules.keyboard import (
@@ -1331,6 +1335,8 @@ def show_sample_icon_picker() -> None:
         categories["Font Awesome"] = build_font_awesome_icons
     if fonts["brands"]:
         categories["Font Awesome Brands"] = build_font_awesome_brand_icons
+    if find_nerd_fonts():
+        categories["Nerd Font"] = build_nerd_font_icons
 
     if not categories:
         QMessageBox.information(main_window, "No sample icons", "No sample icons were found.")
@@ -2244,6 +2250,63 @@ def show_page_settings(window: "MainWindow") -> None:
     update_focus_watcher(window.ui)
 
 
+def build_control_presets_menu(ui) -> None:
+    """Populates the Controls… button with a menu of application control
+    surfaces that can be laid out onto the current page."""
+    presets_menu = QMenu(ui.apply_preset)
+    for preset in CONTROL_PRESETS:
+        presets_menu.addAction(preset.name, partial(apply_control_preset_to_page, preset))
+    ui.apply_preset.setMenu(presets_menu)
+
+
+def apply_control_preset_to_page(preset: ControlPreset, _checked: bool = False) -> None:
+    """Replaces the buttons on the current page with a preset's control keys.
+
+    Each action is laid out on a key in order, filling as many keys as the page
+    has; any remaining keys are cleared so the page is a clean control surface.
+    """
+    deck_id = _deck()
+    page_id = _page()
+    if deck_id is None or page_id is None:
+        return
+
+    count = api.get_page_button_count(deck_id, page_id)
+
+    confirm = QMessageBox(main_window)
+    confirm.setWindowTitle("Apply control preset")
+    confirm.setText(
+        f"Replace the {count} buttons on this page with the “{preset.name}” controls?\n\n"
+        "The current buttons on this page will be cleared."
+    )
+    confirm.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+    confirm.setDefaultButton(QMessageBox.StandardButton.No)
+    confirm.setIcon(QMessageBox.Icon.Question)
+    if confirm.exec() != QMessageBox.StandardButton.Yes:
+        return
+
+    for button in range(count):
+        api.clear_button(deck_id, page_id, button)
+
+    for index, action in enumerate(preset.actions):
+        if index >= count:
+            break
+        if action.text:
+            api.set_button_text(deck_id, page_id, index, action.text)
+        if action.keys:
+            api.set_button_keys(deck_id, page_id, index, action.keys)
+        if action.write:
+            api.set_button_write(deck_id, page_id, index, action.write)
+        if action.command:
+            api.set_button_command(deck_id, page_id, index, action.command)
+        if action.icon:
+            icon_path = render_named_solid_icon(action.icon)
+            if icon_path:
+                api.set_button_icon(deck_id, page_id, index, icon_path)
+
+    redraw_buttons()
+    build_button_state_pages()
+
+
 def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     """Creates the main application window and configures slots and signals"""
     global main_window
@@ -2284,6 +2347,7 @@ def create_main_window(api: StreamDeckServer, app: QApplication) -> MainWindow:
     ui.actionDarkMode.toggled.connect(toggle_dark_mode)
     ui.actionModernAccent.triggered.connect(choose_modern_accent)
     ui.page_settings.clicked.connect(partial(show_page_settings, main_window))
+    build_control_presets_menu(ui)
     ui.settingsButton.setEnabled(False)
     ui.button_states.clear()
     build_button_state_pages()
