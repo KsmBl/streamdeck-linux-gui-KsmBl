@@ -18,8 +18,9 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   mitgelieferten Symbolsätzen (Medien, Lautstärke, Helligkeit, Web, System), großen **Windows-XP**-
   Icon-Sätzen in den Größen 16/32/48 Pixel (Hunderte klassischer System-, Dateityp- und
   Geräte-Icons), den echten Icons Ihrer installierten Browser (Firefox, Chrome, Chromium, Edge,
-  Vivaldi, Brave) und — falls Font Awesome installiert ist — den großen Kategorien *Font Awesome*
-  und *Font Awesome Brands*. Icons gibt es in Weiß und in farbigen Varianten samt optionaler
+  Vivaldi, Brave) und — falls die Schriften installiert sind — den *vollständigen* Sätzen *Font
+  Awesome* und *Font Awesome Brands* sowie sämtlichen *Nerd-Font*-Glyphen (Tausende Icons, direkt aus
+  den installierten Schriften gerendert). Icons gibt es in Weiß und in farbigen Varianten samt optionaler
   Einfärbung; getrennte Symbole für **Stream-Deck-Helligkeit** und **Bildschirmhelligkeit** machen
   beide leicht unterscheidbar.
 * **Medien- & Helligkeitstasten** — ein **Media…**-Menü neben *Press Keys* fügt fertige Multimedia-

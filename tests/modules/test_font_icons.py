@@ -105,3 +105,81 @@ def test_build_browser_icons_prefers_system_theme(tmp_path):
     # Firefox resolved from the system theme; others have neither theme nor font.
     assert icons.get("Firefox") == "/themes/firefox.png"
     assert "Chrome" not in icons
+
+
+def test_in_ranges():
+    ranges = ((0x10, 0x20), (0x100, 0x100))
+    assert font_icons._in_ranges(0x10, ranges)
+    assert font_icons._in_ranges(0x18, ranges)
+    assert font_icons._in_ranges(0x100, ranges)
+    assert not font_icons._in_ranges(0x21, ranges)
+    assert not font_icons._in_ranges(0x99, ranges)
+
+
+def test_pretty_glyph_name():
+    assert font_icons._pretty_glyph_name("arrow-left") == "Arrow Left"
+    assert font_icons._pretty_glyph_name("magnifying_glass") == "Magnifying Glass"
+    # Opaque uXXXX / uniXXXX names yield an empty string (caller uses a U+ label).
+    assert font_icons._pretty_glyph_name("uni0041") == ""
+    assert font_icons._pretty_glyph_name("uF04B") == ""
+
+
+def test_font_codepoint_to_name_reads_real_font():
+    # Roboto has a real cmap, so fonttools should map 'A' to a glyph name.
+    font_icons._font_reverse_cmap_cache.clear()
+    mapping = font_icons._font_codepoint_to_name(ROBOTO)
+    assert mapping  # non-empty with fonttools installed
+    assert ord("A") in mapping
+
+
+def test_name_to_codepoint_falls_back_to_presets():
+    # A glyph name the (non-FA) Roboto cmap does not contain falls back to the
+    # bundled preset code points.
+    assert font_icons._name_to_codepoint(ROBOTO, "arrow-left") == font_icons.PRESET_ICON_CODEPOINTS["arrow-left"]
+    assert font_icons._name_to_codepoint(ROBOTO, "not-a-real-glyph") is None
+
+
+def test_render_named_solid_icon_without_font_returns_none():
+    with patch.object(font_icons, "find_font_awesome_fonts", return_value={"solid": None, "brands": None}):
+        assert font_icons.render_named_solid_icon("arrow-left") is None
+
+
+def test_render_named_solid_icon_renders(tmp_path):
+    # Use Roboto as a stand-in solid font and an ASCII code point that exists.
+    with patch.object(
+        font_icons, "find_font_awesome_fonts", return_value={"solid": ROBOTO, "brands": None}
+    ), patch.dict(font_icons.PRESET_ICON_CODEPOINTS, {"test-glyph": ord("A")}):
+        out = font_icons.render_named_solid_icon("test-glyph", str(tmp_path))
+    assert out is not None and os.path.isfile(out)
+
+
+def test_render_all_glyphs_enumerates_font(tmp_path):
+    # Enumerate the basic-Latin uppercase letters from Roboto via its cmap.
+    icons = font_icons._render_all_glyphs(ROBOTO, ((ord("A"), ord("Z")),), "latin", str(tmp_path))
+    assert len(icons) == 26
+    names = {name for name, _ in icons}
+    assert "A" in names  # Roboto's glyph name for U+0041 is just "A"
+    for _, path in icons:
+        assert os.path.isfile(path)
+
+
+def test_find_nerd_fonts_prefers_symbols():
+    sample = (
+        "/usr/share/fonts/Hack Nerd Font Mono.ttf: Hack Nerd Font Mono:style=Regular\n"
+        "/usr/share/fonts/Symbols Nerd Font.ttf: Symbols Nerd Font:style=Regular\n"
+        "/usr/share/fonts/DejaVuSans.ttf: DejaVu Sans:style=Book\n"
+    )
+    with patch("subprocess.run") as run:
+        run.return_value.stdout = sample
+        assert font_icons.find_nerd_fonts().endswith("Symbols Nerd Font.ttf")
+
+
+def test_find_nerd_fonts_none_found():
+    with patch("subprocess.run") as run:
+        run.return_value.stdout = "/usr/share/fonts/DejaVuSans.ttf: DejaVu Sans:style=Book\n"
+        assert font_icons.find_nerd_fonts() is None
+
+
+def test_build_nerd_font_icons_without_font():
+    with patch.object(font_icons, "find_nerd_fonts", return_value=None):
+        assert font_icons.build_nerd_font_icons("/tmp/sd-nerd-test") == []

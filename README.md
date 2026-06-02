@@ -17,8 +17,9 @@ credit for the original work goes to its authors and contributors.
 * **Icon library** — an **Icons…** button opens a searchable picker with bundled glyph sets
   (media, volume, brightness, web, system), large **Windows XP** icon sets at 16/32/48-pixel sizes
   (hundreds of classic system, file-type and device icons), your installed browsers' real icons
-  (Firefox, Chrome, Chromium, Edge, Vivaldi, Brave), and — when Font Awesome is installed — large
-  *Font Awesome* and *Font Awesome Brands* categories. Icons come in white and colourised variants,
+  (Firefox, Chrome, Chromium, Edge, Vivaldi, Brave), and — when the fonts are installed — the
+  *complete* *Font Awesome* and *Font Awesome Brands* sets plus every *Nerd Font* glyph (thousands of
+  icons, rendered straight from the installed fonts). Icons come in white and colourised variants,
   with an optional colour tint, and there are separate **Stream Deck brightness** and **screen
   brightness** icons so the two are easy to tell apart.
 * **Media & brightness key presets** — a **Media…** menu next to *Press Keys* inserts ready-made

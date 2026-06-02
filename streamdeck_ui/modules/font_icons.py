@@ -278,6 +278,89 @@ BROWSER_THEME_NAMES: Dict[str, List[str]] = {
 
 _WHITE = (255, 255, 255, 255)
 
+# Code-point ranges that hold Font Awesome icon glyphs (all live in the private
+# use areas). Enumerating these renders *every* glyph the installed font
+# provides, not just the curated subset above.
+FONT_AWESOME_SOLID_RANGES: Tuple[Tuple[int, int], ...] = ((0x2000, 0x2BFF), (0xE000, 0xF8FF), (0x1F000, 0x1FAFF))
+FONT_AWESOME_BRANDS_RANGES: Tuple[Tuple[int, int], ...] = ((0xE000, 0xF8FF),)
+
+# Documented Nerd Fonts icon ranges (see https://www.nerdfonts.com/cheat-sheet).
+# Restricting to these keeps enumeration to the icon glyphs and skips the base
+# font's Latin letters, digits and punctuation.
+NERD_FONT_RANGES: Tuple[Tuple[int, int], ...] = (
+    (0x23FB, 0x23FE),  # IEC power symbols
+    (0x2665, 0x2665),  # Octicons heart
+    (0x26A1, 0x26A1),  # Octicons zap
+    (0x2B58, 0x2B58),  # IEC power on
+    (0xE000, 0xE00D),  # Pomicons
+    (0xE0A0, 0xE0D7),  # Powerline + Powerline Extra
+    (0xE200, 0xE2A9),  # Font Awesome Extension
+    (0xE300, 0xE3E3),  # Weather Icons
+    (0xE5FA, 0xE6B7),  # Seti-UI + Custom
+    (0xE700, 0xE7C5),  # Devicons
+    (0xEA60, 0xEC1E),  # Codicons
+    (0xED00, 0xF2FF),  # Font Awesome + extras
+    (0xF300, 0xF381),  # Font Logos
+    (0xF400, 0xF533),  # Octicons
+    (0xF0001, 0xF1AF0),  # Material Design Icons
+)
+
+# Canonical Font Awesome "Free Solid" code points for the glyphs used by the
+# application control presets. These let preset icons render even when fonttools
+# is not installed (so glyph names cannot be resolved from the font directly).
+PRESET_ICON_CODEPOINTS: Dict[str, int] = {
+    "plus": 0xF067,
+    "xmark": 0xF00D,
+    "rotate-left": 0xF2EA,
+    "rotate-right": 0xF2F9,
+    "arrows-rotate": 0xF021,
+    "chevron-left": 0xF053,
+    "chevron-right": 0xF054,
+    "arrow-left": 0xF060,
+    "arrow-right": 0xF061,
+    "arrow-up": 0xF062,
+    "angles-up": 0xF102,
+    "angles-down": 0xF103,
+    "globe": 0xF0AC,
+    "magnifying-glass": 0xF002,
+    "window-restore": 0xF2D2,
+    "user-secret": 0xF21B,
+    "bookmark": 0xF02E,
+    "download": 0xF019,
+    "expand": 0xF065,
+    "house": 0xF015,
+    "folder-plus": 0xF65E,
+    "pen": 0xF304,
+    "trash": 0xF1F8,
+    "check-double": 0xF560,
+    "eye": 0xF06E,
+    "circle-info": 0xF05A,
+    "floppy-disk": 0xF0C7,
+    "right-from-bracket": 0xF2F5,
+    "power-off": 0xF011,
+    "copy": 0xF0C5,
+    "paste": 0xF0EA,
+    "i-cursor": 0xF246,
+    "play": 0xF04B,
+    "backward-step": 0xF048,
+    "forward-step": 0xF051,
+    "stop": 0xF04D,
+    "volume-high": 0xF028,
+    "volume-low": 0xF027,
+    "volume-xmark": 0xF6A9,
+}
+
+# Reverse lookups so enumerated glyphs can reuse the curated display names where
+# they exist (the rest fall back to the font's own glyph name or a U+ code).
+_SOLID_NAME_BY_CODEPOINT: Dict[int, str] = {code: name for name, code in FONT_AWESOME_SOLID.items()}
+_BRANDS_NAME_BY_CODEPOINT: Dict[int, str] = {code: name for name, code in FONT_AWESOME_BRANDS.items()}
+
+# Cache of {code point: glyph name} maps (the inverse of _font_cmap_cache).
+_font_reverse_cmap_cache: Dict[str, Dict[int, str]] = {}
+
+# Glyph names that are not real icons and should never be offered as such.
+_NON_ICON_GLYPH_NAMES = {".notdef", ".null", "nonmarkingreturn", "space", "uni0020"}
+
 
 def find_font_awesome_fonts() -> Dict[str, Optional[str]]:
     """Returns the file paths of the installed Font Awesome "solid" and "brands"
@@ -319,12 +402,133 @@ def _font_name_to_codepoint(font_path: str) -> Dict[str, int]:
     return mapping
 
 
-def _resolve_codepoint(font_path: str, display_name: str, fallback: int) -> int:
-    """Resolves a curated icon's code point from the installed font by its Font
-    Awesome glyph name (robust across font versions). Falls back to the bundled
-    code point when fonttools is unavailable or the name is not present."""
-    glyph_name = display_name.lower().replace(" ", "-")
-    return _font_name_to_codepoint(font_path).get(glyph_name, fallback)
+def _font_codepoint_to_name(font_path: str) -> Dict[int, str]:
+    """Returns the font's {code point: glyph name} map using fonttools, if it is
+    available. Cached per font; empty when fonttools is missing or fails."""
+    if font_path in _font_reverse_cmap_cache:
+        return _font_reverse_cmap_cache[font_path]
+
+    mapping: Dict[int, str] = {}
+    try:
+        from fontTools.ttLib import TTFont  # optional dependency
+
+        mapping = dict(TTFont(font_path).getBestCmap())
+    except Exception:  # noqa: BLE001 - fonttools missing or font unreadable; fall back gracefully
+        mapping = {}
+
+    _font_reverse_cmap_cache[font_path] = mapping
+    return mapping
+
+
+def _in_ranges(code_point: int, ranges: Tuple[Tuple[int, int], ...]) -> bool:
+    """True if ``code_point`` falls within any of the (start, end) ranges."""
+    return any(start <= code_point <= end for start, end in ranges)
+
+
+def _pretty_glyph_name(name: str) -> str:
+    """Turns a font glyph name like ``arrow-left`` into ``Arrow Left``.
+
+    Returns an empty string for opaque ``uniXXXX``/``uXXXXX`` names so callers
+    can fall back to a plain ``U+`` label."""
+    if re.fullmatch(r"u(ni)?[0-9a-fA-F]+", name):
+        return ""
+    return name.replace("_", " ").replace("-", " ").replace(".", " ").strip().title()
+
+
+def _supported_codepoints(font_path: str, ranges: Tuple[Tuple[int, int], ...], cmap_names: Dict[int, str]) -> List[int]:
+    """Returns the code points the font actually provides within ``ranges``.
+
+    Uses the font's cmap when available (fast, exact); otherwise probes every
+    code point in the ranges with PIL (slower, used when fonttools is absent)."""
+    if cmap_names:
+        return sorted(code_point for code_point in cmap_names if _in_ranges(code_point, ranges))
+
+    try:
+        font = ImageFont.truetype(font_path, 64)
+    except OSError:
+        return []
+    supported: List[int] = []
+    for start, end in ranges:
+        for code_point in range(start, end + 1):
+            if _font_supports(font, code_point):
+                supported.append(code_point)
+    return supported
+
+
+def _render_all_glyphs(
+    font_path: Optional[str],
+    ranges: Tuple[Tuple[int, int], ...],
+    cache_subdir: str,
+    cache_dir: str,
+    name_overrides: Optional[Dict[int, str]] = None,
+    size: int = 256,
+) -> List[Tuple[str, str]]:
+    """Renders every glyph the font provides within ``ranges`` to the cache.
+
+    Names come from ``name_overrides`` first (curated display names), then the
+    font's own glyph name, then a ``U+XXXX`` label. Returns ``(name, path)``
+    tuples for the glyphs that rendered."""
+    if not font_path:
+        return []
+    overrides = name_overrides or {}
+    cmap_names = _font_codepoint_to_name(font_path)
+    icons: List[Tuple[str, str]] = []
+    for code_point in _supported_codepoints(font_path, ranges, cmap_names):
+        out_path = os.path.join(cache_dir, cache_subdir, f"{code_point:x}.png")
+        if not (os.path.isfile(out_path) or render_glyph(font_path, code_point, out_path, size=size)):
+            continue
+        name = overrides.get(code_point) or _pretty_glyph_name(cmap_names.get(code_point, "")) or f"U+{code_point:04X}"
+        icons.append((name, out_path))
+    return icons
+
+
+def _name_to_codepoint(font_path: str, glyph_name: str) -> Optional[int]:
+    """Resolves a Font Awesome glyph name to a code point, preferring the font's
+    own cmap and falling back to the bundled preset code points."""
+    code_point = _font_name_to_codepoint(font_path).get(glyph_name)
+    if code_point is not None:
+        return code_point
+    return PRESET_ICON_CODEPOINTS.get(glyph_name)
+
+
+def render_named_solid_icon(
+    glyph_name: str, cache_dir: str = FONT_ICON_CACHE_DIR, color: Tuple[int, int, int, int] = _WHITE
+) -> Optional[str]:
+    """Renders a single Font Awesome solid glyph by its name (e.g. ``arrow-left``)
+    and returns the PNG path, or ``None`` if no solid font or glyph is found."""
+    font_path = find_font_awesome_fonts()["solid"]
+    if not font_path:
+        return None
+    code_point = _name_to_codepoint(font_path, glyph_name)
+    if code_point is None:
+        return None
+    suffix = "" if color == _WHITE else "_" + "".join(f"{component:02x}" for component in color)
+    out_path = os.path.join(cache_dir, "solid", f"{code_point:x}{suffix}.png")
+    if os.path.isfile(out_path):
+        return out_path
+    return render_glyph(font_path, code_point, out_path, color=color)
+
+
+def find_nerd_fonts() -> Optional[str]:
+    """Returns the path of an installed Nerd Font, preferring a symbols-only
+    font, then a mono variant, then any Nerd Font. ``None`` if none is found."""
+    try:
+        output = subprocess.run(["fc-list"], capture_output=True, text=True, check=False).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    candidates: List[Tuple[str, str]] = []
+    for line in output.splitlines():
+        path = line.split(":", 1)[0].strip()
+        lowered = line.lower()
+        if path and "nerd font" in lowered:
+            candidates.append((lowered, path))
+
+    for needle in ("symbols nerd font", "nerd font mono", "nerd font"):
+        for lowered, path in candidates:
+            if needle in lowered:
+                return path
+    return None
 
 
 def recolor_icon(src_path: str, color_hex: str, cache_dir: str = FONT_ICON_CACHE_DIR) -> str:
@@ -403,32 +607,34 @@ def render_glyph(
     return out_path
 
 
-def _render_catalog(
-    font_path: Optional[str], glyphs: Dict[str, int], cache_subdir: str, cache_dir: str
-) -> List[Tuple[str, str]]:
-    """Renders a catalog of named glyphs to the cache, returning the icons that
-    the font actually provides."""
-    if not font_path:
-        return []
-    icons: List[Tuple[str, str]] = []
-    for name, fallback_code_point in glyphs.items():
-        code_point = _resolve_codepoint(font_path, name, fallback_code_point)
-        out_path = os.path.join(cache_dir, cache_subdir, f"{code_point:04x}.png")
-        if os.path.isfile(out_path) or render_glyph(font_path, code_point, out_path):
-            icons.append((name, out_path))
-    return icons
-
-
 def build_font_awesome_icons(cache_dir: str = FONT_ICON_CACHE_DIR) -> List[Tuple[str, str]]:
-    """Renders the curated Font Awesome solid icons. Empty if no solid font is
-    installed."""
-    return _render_catalog(find_font_awesome_fonts()["solid"], FONT_AWESOME_SOLID, "solid", cache_dir)
+    """Renders every Font Awesome solid icon the installed font provides. Empty
+    if no solid font is installed."""
+    return _render_all_glyphs(
+        find_font_awesome_fonts()["solid"],
+        FONT_AWESOME_SOLID_RANGES,
+        "solid",
+        cache_dir,
+        name_overrides=_SOLID_NAME_BY_CODEPOINT,
+    )
 
 
 def build_font_awesome_brand_icons(cache_dir: str = FONT_ICON_CACHE_DIR) -> List[Tuple[str, str]]:
-    """Renders the curated Font Awesome brand icons. Empty if no brands font is
-    installed."""
-    return _render_catalog(find_font_awesome_fonts()["brands"], FONT_AWESOME_BRANDS, "brands", cache_dir)
+    """Renders every Font Awesome brand icon the installed font provides. Empty
+    if no brands font is installed."""
+    return _render_all_glyphs(
+        find_font_awesome_fonts()["brands"],
+        FONT_AWESOME_BRANDS_RANGES,
+        "brands",
+        cache_dir,
+        name_overrides=_BRANDS_NAME_BY_CODEPOINT,
+    )
+
+
+def build_nerd_font_icons(cache_dir: str = FONT_ICON_CACHE_DIR, size: int = 128) -> List[Tuple[str, str]]:
+    """Renders every Nerd Font icon the installed font provides within the
+    documented icon ranges. Empty if no Nerd Font is installed."""
+    return _render_all_glyphs(find_nerd_fonts(), NERD_FONT_RANGES, "nerd", cache_dir, size=size)
 
 
 def build_browser_icons(cache_dir: str = FONT_ICON_CACHE_DIR) -> List[Tuple[str, str]]:
