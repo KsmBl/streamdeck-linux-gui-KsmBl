@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -64,6 +64,13 @@ class DeckState:
     """Current displayed page in the StreamDeck"""
     focus_pages: Dict[str, int] = field(default_factory=dict)
     """Mapping of focused application id -> page to switch to when it is focused"""
+    auto_pages: List[int] = field(default_factory=list)
+    """Ordered page ids that make up the Auto group. Each is a real page bound to
+    an application via ``focus_pages``; the UI collapses them into one Auto tab
+    and the deck auto-switches between them while it is in the group."""
+    overlay_page: Optional[int] = None
+    """Page id whose non-empty buttons are drawn on top of every auto page (a
+    shared overlay layer). ``None`` when no overlay is configured."""
 
 
 @dataclass

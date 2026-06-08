@@ -1230,6 +1230,26 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QPushButton" name="set_auto_page">
+       <property name="toolTip">
+        <string>Turn this key into a 'go to Auto' key that enters the Auto group (sets a premade icon)</string>
+       </property>
+       <property name="text">
+        <string>Go to Auto</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="set_leave_auto_page">
+       <property name="toolTip">
+        <string>Turn this key into a 'leave Auto' key that returns to the last normal page (sets a premade icon)</string>
+       </property>
+       <property name="text">
+        <string>Leave Auto</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item row="9" column="0">

@@ -53,6 +53,10 @@ FONT_ICON_CACHE_DIR = os.path.join(
 # positive value which switches to that absolute (1-based) page number.
 SWITCH_PAGE_NEXT = -1
 SWITCH_PAGE_PREVIOUS = -2
+# Enter the Auto group (the auto page bound to the focused application, else the
+# first auto page) / leave it (return to the last manually selected normal page).
+SWITCH_PAGE_AUTO = -3
+SWITCH_PAGE_LEAVE_AUTO = -4
 # Where rendered application icons (resolved from the icon theme) are cached so
 # they can be used as button images.
 APP_ICON_CACHE_DIR = os.environ.get(
@@ -156,6 +160,8 @@ def _to_deck_states(state: dict) -> Dict[str, DeckState]:
             rotation=deck_state["rotation"],
             page=deck_state["page"],
             focus_pages={str(app): int(page) for app, page in deck_state.get("focus_pages", {}).items()},
+            auto_pages=[int(page) for page in deck_state.get("auto_pages", [])],
+            overlay_page=(None if deck_state.get("overlay_page") is None else int(deck_state["overlay_page"])),
         )
         for deck_id, deck_state in state.items()
     }
@@ -256,6 +262,8 @@ def _to_deck_config(state: Dict[str, DeckState]) -> dict:
             "rotation": deck_state.rotation,
             "page": deck_state.page,
             "focus_pages": deck_state.focus_pages,
+            "auto_pages": deck_state.auto_pages,
+            "overlay_page": deck_state.overlay_page,
         }
         for deck_id, deck_state in state.items()
     }

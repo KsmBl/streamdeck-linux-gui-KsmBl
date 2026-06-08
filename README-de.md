@@ -18,11 +18,13 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   mitgelieferten Symbolsätzen (Medien, Lautstärke, Helligkeit, Web, System), großen **Windows-XP**-
   Icon-Sätzen in den Größen 16/32/48 Pixel (Hunderte klassischer System-, Dateityp- und
   Geräte-Icons), den echten Icons Ihrer installierten Browser (Firefox, Chrome, Chromium, Edge,
-  Vivaldi, Brave) und — falls die Schriften installiert sind — den *vollständigen* Sätzen *Font
-  Awesome* und *Font Awesome Brands* sowie sämtlichen *Nerd-Font*-Glyphen (Tausende Icons, direkt aus
-  den installierten Schriften gerendert). Icons gibt es in Weiß und in farbigen Varianten samt optionaler
-  Einfärbung; getrennte Symbole für **Stream-Deck-Helligkeit** und **Bildschirmhelligkeit** machen
-  beide leicht unterscheidbar.
+  Vivaldi, Brave), den *vollständigen* Sätzen *Font Awesome* und *Font Awesome Brands* (mitgeliefert,
+  also auch ohne systemweit installiertes Font Awesome verfügbar) und — falls eine *Nerd-Font*
+  installiert ist — zusätzlich sämtlichen *Nerd-Font*-Glyphen (Tausende Icons, direkt aus den
+  Schriften gerendert). Icons gibt es in Weiß und in farbigen Varianten samt optionaler Einfärbung und
+  mit einem dezenten Schlagschatten in der Auswahl, damit helle Icons auch auf hellem Hintergrund
+  sichtbar bleiben; getrennte Symbole für **Stream-Deck-Helligkeit** und **Bildschirmhelligkeit**
+  machen beide leicht unterscheidbar.
 * **Medien- & Helligkeitstasten** — ein **Media…**-Menü neben *Press Keys* fügt fertige Multimedia-
   und Helligkeitstasten ein (Lautstärke, Wiedergabe/Pause, vor/zurück, Helligkeit hoch/runter).
 * **Live-Info-Tasten** — ein **Live info**-Auswahlfeld lässt eine Taste statt statischem Text einen
@@ -34,21 +36,27 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   Zuständen zu einem Umschalter wie Stumm/Laut oder An/Aus.
 * **Seiten-Navigationstasten** — die Schaltflächen **◀ Prev Page** / **Next Page ▶** machen aus
   einer Taste mit einem Klick eine relative Seitenumschaltung (mit Umlauf) und setzen ein
-  vorgefertigtes Pfeil-Icon.
+  vorgefertigtes Pfeil-Icon; mit **Go to Auto** / **Leave Auto** wird eine Taste zum Betreten bzw.
+  Verlassen der Auto-Gruppe (siehe unten).
 * **Steuerungs-Vorlagen für Anwendungen** — eine Schaltfläche **Controls…** über den Seiten füllt die
   aktuelle Seite mit einem Klick mit einer fertigen Steuerflächen-Vorlage für ein Programm:
   **Firefox**, **Vivaldi**, **Thunar**, **Vim** oder einen **Medienplayer**. Jede Vorlage legt
   beschriftete Tasten mit Icon an (Neuer Tab, Zurück, Neu laden, Speichern, …), die das Programm über
   seine Tastenkürzel (bzw. die globalen Medientasten) steuern; die passenden Font-Awesome-Icons werden
-  automatisch gesetzt, sofern die Schrift installiert ist. Programmkürzel wirken auf das jeweils
-  fokussierte Fenster — kombinieren Sie eine Vorlage mit der *Anwendung-pro-Seite*-Bindung, um
-  automatisch dorthin zu wechseln.
-* **Anwendung pro Seite** — binden Sie eine Seite an ein Programm (über das Zahnrad der Seite); sie
-  wird automatisch angezeigt, sobald dieses Programm den Fokus hat. Wird ein Programm ohne eigene
-  Seite fokussiert, kehrt das Deck zur zuletzt selbst gewählten Seite zurück. Das gebundene Programm
-  steht im Seitenreiter. Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit
-  `kdotool`); Compositoren, die das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland),
-  lassen die Funktion einfach inaktiv.
+  automatisch gesetzt (die Schrift ist mitgeliefert). Programmkürzel wirken auf das jeweils fokussierte
+  Fenster — kombinieren Sie eine Vorlage mit einer **Auto-Seite**, um automatisch dorthin zu wechseln.
+* **Auto-Seiten** — ein **Auto**-Reiter bündelt mehrere anwendungsbezogene Seiten, denen das Deck
+  automatisch folgt. Jede Auto-Seite ist an ein Programm gebunden und wird angezeigt, sobald dieses
+  den Fokus erhält — allerdings nur, solange sich das Deck *in* der Auto-Gruppe befindet, sodass es
+  Ihrem Fokus nur dann folgt, wenn Sie es möchten. Mit einer **Go to Auto**-Taste betreten Sie die
+  Gruppe, mit **Leave Auto** kehren Sie zu Ihren normalen Seiten zurück. Im Auto-Reiter können Sie ein
+  Programm hinzufügen (mit einer Steuerungs-Vorlage vorbefüllt), das einer Seite zugeordnete Programm
+  ändern (mit einer **Detect application**-Schaltfläche, die fünf Sekunden wartet, damit Sie zuvor das
+  Zielfenster fokussieren können), die Tasten jeder Seite bearbeiten und ein **Overlay** festlegen —
+  eine Ebene, deren Tasten über *allen* Auto-Seiten liegen, ideal für eine gemeinsame „Leave Auto“-
+  oder Medienzeile. Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit `kdotool`);
+  Compositoren, die das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland), lassen die
+  Funktion einfach inaktiv.
 * **Designs** — wählen Sie unter **View** ein Basis-Design: das **Default**-Design (Plattformlook),
   ein nostalgisches **Windows-XP**-Design (Luna) oder ein elegantes **Modern**-Design mit flachen,
   abgerundeten Bedienelementen und einem Indigo-Akzent (die Akzentfarbe ist über **View → Modern
@@ -113,4 +121,6 @@ Die Kommunikation mit dem Gerät erfolgt über die
 [Python-Elgato-Stream-Deck-Bibliothek](https://github.com/abcminiuser/python-elgato-streamdeck).
 Dieser Fork baut auf [streamdeck-linux-gui](https://github.com/streamdeck-linux-gui/streamdeck-linux-gui)
 und dem ursprünglichen [streamdeck_ui](https://github.com/timothycrosley/streamdeck-ui) auf — Dank an
-alle, die dazu beigetragen haben. Das Projekt steht unter der MIT-Lizenz (siehe [LICENSE](LICENSE)).
+alle, die dazu beigetragen haben. Die mitgelieferten [Font-Awesome-Free](https://fontawesome.com)-
+Schriften in `streamdeck_ui/fonts/fontawesome` werden unter der SIL Open Font License 1.1 verwendet
+(siehe die zugehörige Lizenzdatei). Das Projekt steht unter der MIT-Lizenz (siehe [LICENSE](LICENSE)).

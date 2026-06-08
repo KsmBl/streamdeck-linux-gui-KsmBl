@@ -17,11 +17,12 @@ credit for the original work goes to its authors and contributors.
 * **Icon library** — an **Icons…** button opens a searchable picker with bundled glyph sets
   (media, volume, brightness, web, system), large **Windows XP** icon sets at 16/32/48-pixel sizes
   (hundreds of classic system, file-type and device icons), your installed browsers' real icons
-  (Firefox, Chrome, Chromium, Edge, Vivaldi, Brave), and — when the fonts are installed — the
-  *complete* *Font Awesome* and *Font Awesome Brands* sets plus every *Nerd Font* glyph (thousands of
-  icons, rendered straight from the installed fonts). Icons come in white and colourised variants,
-  with an optional colour tint, and there are separate **Stream Deck brightness** and **screen
-  brightness** icons so the two are easy to tell apart.
+  (Firefox, Chrome, Chromium, Edge, Vivaldi, Brave), the *complete* *Font Awesome* and *Font Awesome
+  Brands* sets (bundled, so they always work even when Font Awesome is not installed system wide) and —
+  when a *Nerd Font* is installed — every *Nerd Font* glyph as well (thousands of icons, rendered
+  straight from the fonts). Icons come in white and colourised variants, with an optional colour tint
+  and a soft drop shadow in the picker so light icons stay visible on light backgrounds; separate
+  **Stream Deck brightness** and **screen brightness** icons make the two easy to tell apart.
 * **Media & brightness key presets** — a **Media…** menu next to *Press Keys* inserts ready-made
   multimedia and brightness key actions (volume, play/pause, next/previous, brightness up/down).
 * **Live info buttons** — a **Live info** dropdown makes a key show a value that updates every
@@ -30,19 +31,25 @@ credit for the original work goes to its authors and contributors.
 * **Toggle / cycle keys** — tick **Cycle states on press** and each press advances the key to its
   next state (wrapping), turning a multi-state key into a toggle such as mute/unmute or on/off.
 * **Page navigation keys** — one-click **◀ Prev Page** / **Next Page ▶** buttons turn a key into a
-  relative page switch (with wrap-around) and apply a premade arrow icon.
+  relative page switch (with wrap-around) and apply a premade arrow icon; **Go to Auto** / **Leave
+  Auto** buttons turn a key into one that enters or leaves the Auto group (see below).
 * **Application control presets** — a **Controls…** button above the pages fills the current page in
   one click with a ready-made control surface for an application: **Firefox**, **Vivaldi**, **Thunar**,
   **Vim** or a **media player**. Each preset lays out labelled, icon-bearing keys (New Tab, Back,
   Reload, Save, …) that drive the app through its keyboard shortcuts (or the global media keys); the
-  matching Font Awesome icons are applied automatically when the font is installed. Application shortcuts
-  act on whichever window is focused, so pair a preset with *per-page application binding* to switch
-  to it automatically.
-* **Per-page application binding** — bind a page to an application (via the page's gear button) and
-  it is shown automatically whenever that app is focused; focusing an app with no page returns the
-  deck to the last page you chose yourself. The bound app is shown in the page tab. Detection works
-  on X11, Sway and Hyprland (and KDE with `kdotool`); compositors that don't expose the focused
-  window (e.g. GNOME Wayland) simply leave it inactive.
+  matching Font Awesome icons are applied automatically (the font is bundled). Application shortcuts
+  act on whichever window is focused, so pair a preset with an **Auto page** to switch to it
+  automatically.
+* **Auto pages** — an **Auto** tab collects a set of per-application pages that the deck follows
+  automatically. Each auto page is bound to an application and is shown the moment that app is
+  focused — but only while the deck is *in* the Auto group, so the deck follows your focus only when
+  you want it to. Use a **Go to Auto** key to enter the group and a **Leave Auto** key to return to
+  your normal pages. From the Auto tab you can add an application (seeded with a control preset),
+  change which application a page follows (with a **Detect application** button that waits five
+  seconds so you can focus the target window first), edit each page's buttons, and define an
+  **overlay** — a layer whose keys are drawn on top of *every* auto page, perfect for a shared
+  "Leave Auto" or media row. Detection works on X11, Sway and Hyprland (and KDE with `kdotool`);
+  compositors that don't expose the focused window (e.g. GNOME Wayland) simply leave it inactive.
 * **Themes** — pick a base look under **View**: the **Default** (platform) theme, a nostalgic
   **Windows XP** (Luna) theme, or a sleek **Modern** theme with flat rounded controls and an indigo
   accent (the accent colour is customisable via **View → Modern Accent Colour…**). **Dark Mode** is a
@@ -104,6 +111,8 @@ Communication with the device is powered by the
 [Python Elgato Stream Deck library](https://github.com/abcminiuser/python-elgato-streamdeck).
 This fork builds on [streamdeck-linux-gui](https://github.com/streamdeck-linux-gui/streamdeck-linux-gui)
 and the original [streamdeck_ui](https://github.com/timothycrosley/streamdeck-ui) — thanks to
-everyone who has contributed to them. The project is MIT licensed (see [LICENSE](LICENSE)).
+everyone who has contributed to them. The bundled [Font Awesome Free](https://fontawesome.com)
+fonts in `streamdeck_ui/fonts/fontawesome` are used under the SIL Open Font License 1.1 (see the
+licence file alongside them). The project is MIT licensed (see [LICENSE](LICENSE)).
 
 A German version of this README is available in [README-de.md](README-de.md).

@@ -369,6 +369,16 @@ class Ui_ButtonForm(object):
 
         self.horizontalLayout_switch_page.addWidget(self.set_next_page)
 
+        self.set_auto_page = QPushButton(ButtonForm)
+        self.set_auto_page.setObjectName(u"set_auto_page")
+
+        self.horizontalLayout_switch_page.addWidget(self.set_auto_page)
+
+        self.set_leave_auto_page = QPushButton(ButtonForm)
+        self.set_leave_auto_page.setObjectName(u"set_leave_auto_page")
+
+        self.horizontalLayout_switch_page.addWidget(self.set_leave_auto_page)
+
 
         self.formLayout.setLayout(8, QFormLayout.FieldRole, self.horizontalLayout_switch_page)
 
@@ -493,6 +503,14 @@ class Ui_ButtonForm(object):
         self.set_next_page.setToolTip(QCoreApplication.translate("ButtonForm", u"Turn this key into a 'next page' key (sets a premade icon)", None))
 #endif // QT_CONFIG(tooltip)
         self.set_next_page.setText(QCoreApplication.translate("ButtonForm", u"Next Page ▶", None))
+#if QT_CONFIG(tooltip)
+        self.set_auto_page.setToolTip(QCoreApplication.translate("ButtonForm", u"Turn this key into a 'go to Auto' key that enters the Auto group (sets a premade icon)", None))
+#endif // QT_CONFIG(tooltip)
+        self.set_auto_page.setText(QCoreApplication.translate("ButtonForm", u"Go to Auto", None))
+#if QT_CONFIG(tooltip)
+        self.set_leave_auto_page.setToolTip(QCoreApplication.translate("ButtonForm", u"Turn this key into a 'leave Auto' key that returns to the last normal page (sets a premade icon)", None))
+#endif // QT_CONFIG(tooltip)
+        self.set_leave_auto_page.setText(QCoreApplication.translate("ButtonForm", u"Leave Auto", None))
         self.label_10.setText(QCoreApplication.translate("ButtonForm", u"Switch state", None))
         self.label_7.setText(QCoreApplication.translate("ButtonForm", u"Brightness +/-:", None))
         self.label_6.setText(QCoreApplication.translate("ButtonForm", u"Write Text:", None))

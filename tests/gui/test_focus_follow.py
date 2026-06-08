@@ -5,44 +5,50 @@ from tests.common import STREAMDECK_SERIAL
 
 
 @pytest.mark.serial
-def test_focus_switches_to_bound_page(api_and_window, mocker):
+def test_focus_switches_between_auto_pages(api_and_window, mocker):
+    """While the deck is on an auto page, focusing a bound app switches to its
+    auto page."""
     main_window, api = api_and_window
     api.reset_dimmer = mocker.MagicMock(return_value=False)
-    gui.last_manual_page[STREAMDECK_SERIAL] = 0
-    api.set_page(STREAMDECK_SERIAL, 0)
+    # Both fixture pages belong to the Auto group; page 1 is bound to Firefox.
+    api.state[STREAMDECK_SERIAL].auto_pages = [0, 1]
     api.set_focus_page(STREAMDECK_SERIAL, "firefox", 1)
+    api.set_page(STREAMDECK_SERIAL, 0)
 
     gui.handle_focus_changed(main_window.ui, "firefox")
     assert api.get_page(STREAMDECK_SERIAL) == 1
 
 
 @pytest.mark.serial
-def test_focus_unmapped_app_restores_last_manual_page(api_and_window, mocker):
+def test_focus_unmapped_app_stays_on_current_auto_page(api_and_window, mocker):
+    """A focused app with no auto page leaves the deck on its current auto page
+    (no return to the last manual page while in the Auto group)."""
     main_window, api = api_and_window
     api.reset_dimmer = mocker.MagicMock(return_value=False)
-    gui.last_manual_page[STREAMDECK_SERIAL] = 0
-    api.set_page(STREAMDECK_SERIAL, 0)
+    api.state[STREAMDECK_SERIAL].auto_pages = [0, 1]
     api.set_focus_page(STREAMDECK_SERIAL, "firefox", 1)
+    api.set_page(STREAMDECK_SERIAL, 0)
 
-    # Focused app with a bound page -> its page.
     gui.handle_focus_changed(main_window.ui, "firefox")
     assert api.get_page(STREAMDECK_SERIAL) == 1
 
-    # Focused app without a bound page -> back to the last manual page.
+    # Focused app without an auto page -> stay put.
     gui.handle_focus_changed(main_window.ui, "some-unmapped-app")
-    assert api.get_page(STREAMDECK_SERIAL) == 0
+    assert api.get_page(STREAMDECK_SERIAL) == 1
 
 
 @pytest.mark.serial
-def test_no_restore_when_deck_has_no_bindings(api_and_window, mocker):
+def test_no_switch_when_not_on_an_auto_page(api_and_window, mocker):
+    """Focus changes are ignored unless the deck is currently in the Auto group."""
     main_window, api = api_and_window
     api.reset_dimmer = mocker.MagicMock(return_value=False)
-    api.set_page(STREAMDECK_SERIAL, 1)
-    gui.last_manual_page[STREAMDECK_SERIAL] = 0  # would restore to 0 if active
+    # Page 1 is an auto page bound to Firefox, but the deck is on normal page 0.
+    api.state[STREAMDECK_SERIAL].auto_pages = [1]
+    api.set_focus_page(STREAMDECK_SERIAL, "firefox", 1)
+    api.set_page(STREAMDECK_SERIAL, 0)
 
-    # No focus_pages on this deck -> feature inactive -> page is untouched.
-    gui.handle_focus_changed(main_window.ui, "anything")
-    assert api.get_page(STREAMDECK_SERIAL) == 1
+    gui.handle_focus_changed(main_window.ui, "firefox")
+    assert api.get_page(STREAMDECK_SERIAL) == 0
 
 
 @pytest.mark.serial

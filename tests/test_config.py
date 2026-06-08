@@ -75,6 +75,8 @@ TEST_CONFIG_STATE = {
         "rotation": 0,
         "page": 0,
         "focus_pages": {},
+        "auto_pages": [],
+        "overlay_page": None,
     }
 }
 TEST_CONFIG_STATE_V1 = {

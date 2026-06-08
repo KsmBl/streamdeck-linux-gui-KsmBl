@@ -4,7 +4,7 @@ import os
 import threading
 from copy import deepcopy
 from functools import partial
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from PIL.ImageQt import ImageQt
 from PySide6.QtCore import QObject, Signal
@@ -32,6 +32,9 @@ from streamdeck_ui.logger import logger
 from streamdeck_ui.model import ButtonMultiState, ButtonState, DeckState
 from streamdeck_ui.modules import live
 from streamdeck_ui.stream_deck_monitor import StreamDeckMonitor
+
+if TYPE_CHECKING:
+    from streamdeck_ui.modules.control_presets import ControlPreset
 
 
 class KeySignalEmitter(QObject):
@@ -755,6 +758,118 @@ class StreamDeckServer:
                 return app
         return None
 
+    def get_auto_pages(self, serial_number: str) -> List[int]:
+        """Returns the page ids in the deck's Auto group, in order."""
+        return list(self.state[serial_number].auto_pages)
+
+    def is_auto_page(self, serial_number: str, page: int) -> bool:
+        """True if the page belongs to the Auto group."""
+        return page in self.state[serial_number].auto_pages
+
+    def add_auto_page(self, serial_number: str, app: str = "", preset: Optional["ControlPreset"] = None) -> int:
+        """Creates a new Auto-group page, optionally bound to ``app`` and seeded
+        with a control preset. Returns the new page index."""
+        page = self.add_new_page(serial_number)
+        if page not in self.state[serial_number].auto_pages:
+            self.state[serial_number].auto_pages.append(page)
+        if app:
+            self.set_focus_page(serial_number, app, page)
+        if preset is not None:
+            self.apply_control_preset(serial_number, page, preset)
+        self._save_state()
+        return page
+
+    def remove_auto_page(self, serial_number: str, page: int) -> None:
+        """Removes a page from the Auto group and deletes it."""
+        if page in self.state[serial_number].auto_pages:
+            self.state[serial_number].auto_pages.remove(page)
+        # remove_page also drops the focus binding and persists the change.
+        self.remove_page(serial_number, page)
+        self._save_state()
+
+    def get_overlay_page(self, serial_number: str) -> Optional[int]:
+        """Returns the overlay page id, or None when no overlay is configured."""
+        return self.state[serial_number].overlay_page
+
+    def set_overlay_page(self, serial_number: str, page: int) -> None:
+        """Marks ``page`` as the overlay drawn on top of every auto page."""
+        if page in self.state[serial_number].auto_pages:
+            self.state[serial_number].auto_pages.remove(page)
+        self.state[serial_number].overlay_page = page
+        self.remove_focus_page(serial_number, page)
+        self._save_state()
+        self._refresh_auto_pages(serial_number)
+
+    def clear_overlay_page(self, serial_number: str) -> None:
+        """Removes the overlay so auto pages show their own keys again."""
+        self.state[serial_number].overlay_page = None
+        self._save_state()
+        self._refresh_auto_pages(serial_number)
+
+    def resolve_overlay(self, serial_number: str, page: int, button: int) -> Tuple[int, int]:
+        """Resolves a (page, button) to the slot whose state should be shown and
+        acted on. On an auto page a non-empty overlay button takes over its slot;
+        otherwise the input is returned unchanged."""
+        overlay = self.state[serial_number].overlay_page
+        if overlay is None or overlay == page or page not in self.state[serial_number].auto_pages:
+            return page, button
+        if overlay not in self.state[serial_number].buttons or not self._button_has_content(
+            serial_number, overlay, button
+        ):
+            return page, button
+        return overlay, button
+
+    def _button_has_content(self, serial_number: str, page: int, button: int) -> bool:
+        """True if the button defines any visible content or action."""
+        state = self._button_state(serial_number, page, button)
+        return bool(
+            state.icon
+            or state.text
+            or state.keys
+            or state.write
+            or state.command
+            or state.live_source
+            or state.switch_page
+            or state.switch_state
+            or state.brightness_change
+        )
+
+    def _refresh_auto_pages(self, serial_number: str) -> None:
+        """Repaints every key on every auto page (used when the overlay changes)."""
+        if serial_number not in self.display_handlers:
+            return
+        for page in list(self.state[serial_number].auto_pages):
+            if page in self.state[serial_number].buttons:
+                for button in self.state[serial_number].buttons[page]:
+                    self._update_button_filters(serial_number, page, button)
+        self.display_handlers[serial_number].synchronize()
+
+    def apply_control_preset(self, serial_number: str, page: int, preset: "ControlPreset") -> None:
+        """Replaces the buttons on ``page`` with a control preset's keys, clearing
+        any leftover keys so the page is a clean control surface. Preset icons are
+        rendered from Font Awesome (bundled when not installed system wide)."""
+        from streamdeck_ui.modules.font_icons import render_named_solid_icon
+
+        count = self.get_page_button_count(serial_number, page)
+        for button in range(count):
+            self.clear_button(serial_number, page, button)
+
+        for index, action in enumerate(preset.actions):
+            if index >= count:
+                break
+            if action.text:
+                self.set_button_text(serial_number, page, index, action.text)
+            if action.keys:
+                self.set_button_keys(serial_number, page, index, action.keys)
+            if action.write:
+                self.set_button_write(serial_number, page, index, action.write)
+            if action.command:
+                self.set_button_command(serial_number, page, index, action.command)
+            if action.icon:
+                icon_path = render_named_solid_icon(action.icon)
+                if icon_path:
+                    self.set_button_icon(serial_number, page, index, icon_path)
+
     def _update_streamdeck_filters(self, serial_number: str):
         """Updates the filters for all the StreamDeck buttons.
 
@@ -790,7 +905,10 @@ class StreamDeckServer:
         :type button: int
         """
         display_handler = self.display_handlers[serial_number]
-        button_settings = self._button_state(serial_number, page, button)
+        # On an auto page a non-empty overlay button is drawn (and acts) in place
+        # of the underlying key, so render the overlay button's state there.
+        source_page, source_button = self.resolve_overlay(serial_number, page, button)
+        button_settings = self._button_state(serial_number, source_page, source_button)
         filters: List[Filter] = []
 
         background_color = button_settings.background_color or DEFAULT_BACKGROUND_COLOR
@@ -823,3 +941,9 @@ class StreamDeckServer:
             )
 
         display_handler.replace(page, button, filters)
+
+        # Editing the overlay must repaint that key on every auto page it covers.
+        if page == self.state[serial_number].overlay_page:
+            for auto_page in self.state[serial_number].auto_pages:
+                if auto_page in self.state[serial_number].buttons:
+                    self._update_button_filters(serial_number, auto_page, button)
