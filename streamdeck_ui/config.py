@@ -14,6 +14,12 @@ FONTS_PATH = os.path.join(PROJECT_PATH, "fonts", "roboto")
 FONTS_FALLBACK_PATH = os.path.join(PROJECT_PATH, "fonts", "roboto")
 DEFAULT_FONT = "Roboto-Regular.ttf"
 DEFAULT_FONT_FALLBACK_PATH = os.path.join(FONTS_FALLBACK_PATH, DEFAULT_FONT)
+# Font Awesome Free desktop fonts (SIL OFL 1.1) bundled so the icon library and
+# the control-preset icons work even when Font Awesome is not installed system
+# wide. Used as a fallback when fontconfig finds no Font Awesome on the system.
+FONT_AWESOME_PATH = os.path.join(PROJECT_PATH, "fonts", "fontawesome")
+BUNDLED_FONT_AWESOME_SOLID = os.path.join(FONT_AWESOME_PATH, "fa-solid-900.otf")
+BUNDLED_FONT_AWESOME_BRANDS = os.path.join(FONT_AWESOME_PATH, "fa-brands-400.otf")
 DEFAULT_FONT_SIZE = 14
 DEFAULT_FONT_COLOR = "#ffffff"
 DEFAULT_BACKGROUND_COLOR = "#000000"

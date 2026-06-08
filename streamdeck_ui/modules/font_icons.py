@@ -12,9 +12,9 @@ import re
 import subprocess
 from typing import Dict, List, Optional, Tuple
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from streamdeck_ui.config import FONT_ICON_CACHE_DIR
+from streamdeck_ui.config import BUNDLED_FONT_AWESOME_BRANDS, BUNDLED_FONT_AWESOME_SOLID, FONT_ICON_CACHE_DIR
 from streamdeck_ui.modules.applications import find_icon_file, list_desktop_applications
 
 # Keywords used to recognise an installed browser from its desktop entry when a
@@ -363,13 +363,17 @@ _NON_ICON_GLYPH_NAMES = {".notdef", ".null", "nonmarkingreturn", "space", "uni00
 
 
 def find_font_awesome_fonts() -> Dict[str, Optional[str]]:
-    """Returns the file paths of the installed Font Awesome "solid" and "brands"
-    fonts, or ``None`` for each that is not found."""
+    """Returns the file paths of the Font Awesome "solid" and "brands" fonts.
+
+    A font installed system wide (located via fontconfig) is preferred; when one
+    is not found the bundled Font Awesome Free font shipped with the project is
+    used instead, so the icon library and the control-preset icons work on any
+    system. Each entry is ``None`` only when neither source provides it."""
     fonts: Dict[str, Optional[str]] = {"solid": None, "brands": None}
     try:
         output = subprocess.run(["fc-list"], capture_output=True, text=True, check=False).stdout
     except (OSError, subprocess.SubprocessError):
-        return fonts
+        output = ""
 
     for line in output.splitlines():
         path = line.split(":", 1)[0].strip()
@@ -380,6 +384,12 @@ def find_font_awesome_fonts() -> Dict[str, Optional[str]]:
             fonts["brands"] = path
         elif fonts["solid"] is None and "solid" in lowered:
             fonts["solid"] = path
+
+    # Fall back to the bundled fonts for anything not found on the system.
+    if fonts["solid"] is None and os.path.isfile(BUNDLED_FONT_AWESOME_SOLID):
+        fonts["solid"] = BUNDLED_FONT_AWESOME_SOLID
+    if fonts["brands"] is None and os.path.isfile(BUNDLED_FONT_AWESOME_BRANDS):
+        fonts["brands"] = BUNDLED_FONT_AWESOME_BRANDS
 
     return fonts
 
@@ -529,6 +539,48 @@ def find_nerd_fonts() -> Optional[str]:
             if needle in lowered:
                 return path
     return None
+
+
+def add_drop_shadow(
+    src_path: str,
+    cache_dir: str = FONT_ICON_CACHE_DIR,
+    blur: int = 6,
+    offset: Tuple[int, int] = (0, 3),
+    opacity: int = 160,
+) -> str:
+    """Returns a copy of an icon with a soft dark drop shadow behind it.
+
+    The shadow keeps light (e.g. white) icons legible against light backgrounds.
+    The canvas is padded so the blurred shadow is not clipped. Returns the
+    original path unchanged if the image cannot be processed. Cached per source
+    so repeated picker draws are cheap."""
+    out_dir = os.path.join(cache_dir, "shadowed")
+    safe = re.sub(r"[^A-Za-z0-9_.-]", "_", src_path.lstrip("/"))
+    out_path = os.path.join(out_dir, safe if safe.lower().endswith(".png") else f"{safe}.png")
+    if os.path.isfile(out_path):
+        return out_path
+
+    try:
+        image = Image.open(src_path).convert("RGBA")
+    except (OSError, ValueError):
+        return src_path
+
+    pad = blur * 2 + max(abs(offset[0]), abs(offset[1]))
+    canvas_size = (image.width + pad * 2, image.height + pad * 2)
+
+    # Build the shadow from the icon's own silhouette (its alpha channel).
+    silhouette = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    silhouette.putalpha(image.getchannel("A").point(lambda value: value * opacity // 255))
+    shadow = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
+    shadow.paste(silhouette, (pad + offset[0], pad + offset[1]), silhouette)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(blur))
+
+    # Draw the original icon on top of its shadow.
+    shadow.paste(image, (pad, pad), image)
+
+    os.makedirs(out_dir, exist_ok=True)
+    shadow.save(out_path, "PNG")
+    return out_path
 
 
 def recolor_icon(src_path: str, color_hex: str, cache_dir: str = FONT_ICON_CACHE_DIR) -> str:

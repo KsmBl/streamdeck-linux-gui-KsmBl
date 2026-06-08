@@ -26,8 +26,20 @@ def test_find_font_awesome_fonts_parses_fclist():
     assert fonts["brands"].endswith("Brands-Regular-400.otf")
 
 
-def test_find_font_awesome_fonts_none_found():
+def test_find_font_awesome_fonts_falls_back_to_bundled():
+    # With no Font Awesome on the system, the bundled fonts are used so the icon
+    # library keeps working everywhere.
     with patch("subprocess.run") as run:
+        run.return_value.stdout = "/usr/share/fonts/TTF/DejaVuSans.ttf: DejaVu Sans:style=Book\n"
+        fonts = font_icons.find_font_awesome_fonts()
+    assert fonts["solid"] == font_icons.BUNDLED_FONT_AWESOME_SOLID
+    assert fonts["brands"] == font_icons.BUNDLED_FONT_AWESOME_BRANDS
+    assert os.path.isfile(fonts["solid"]) and os.path.isfile(fonts["brands"])
+
+
+def test_find_font_awesome_fonts_none_when_bundled_missing():
+    # If even the bundled fonts are absent, both entries are None.
+    with patch("subprocess.run") as run, patch("os.path.isfile", return_value=False):
         run.return_value.stdout = "/usr/share/fonts/TTF/DejaVuSans.ttf: DejaVu Sans:style=Book\n"
         fonts = font_icons.find_font_awesome_fonts()
     assert fonts == {"solid": None, "brands": None}
@@ -74,6 +86,24 @@ def test_recolor_icon_tints_opaque_pixels(tmp_path):
     out = font_icons.recolor_icon(str(src), "#ff8800", str(tmp_path / "cache"))
     recolored = Image.open(out).convert("RGBA")
     assert recolored.getpixel((0, 0)) == (255, 136, 0, 255)
+
+
+def test_add_drop_shadow_pads_and_keeps_icon(tmp_path):
+    src = tmp_path / "white.png"
+    Image.new("RGBA", (16, 16), (255, 255, 255, 255)).save(src)
+
+    out = font_icons.add_drop_shadow(str(src), str(tmp_path / "cache"), blur=4, offset=(0, 2))
+    shadowed = Image.open(out).convert("RGBA")
+    # The canvas grew to make room for the blurred shadow...
+    assert shadowed.size[0] > 16 and shadowed.size[1] > 16
+    # ...and the icon itself is still drawn opaque in the centre.
+    assert shadowed.getpixel((shadowed.size[0] // 2, shadowed.size[1] // 2))[3] == 255
+
+
+def test_add_drop_shadow_bad_file_returns_original(tmp_path):
+    bad = tmp_path / "not-an-image.txt"
+    bad.write_text("nope")
+    assert font_icons.add_drop_shadow(str(bad), str(tmp_path / "cache")) == str(bad)
 
 
 def test_recolor_icon_bad_file_returns_original(tmp_path):
