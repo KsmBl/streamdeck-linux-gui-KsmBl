@@ -634,6 +634,44 @@ def add_drop_shadow(
     return out_path
 
 
+# Fonts (by fontconfig name) that carry both digits and the up/down arrows used
+# by the live network tile, tried in order. The bundled Roboto has no arrows.
+_SYMBOL_FONT_NEEDLES = ("dejavu sans", "noto sans", "liberation sans", "freesans", "nerd font mono", "nerd font")
+_symbol_font_cache: List[Optional[str]] = []
+
+
+def find_symbol_font() -> Optional[str]:
+    """Returns a system font path that can render digits *and* the up/down arrow
+    glyphs (U+2191 / U+2193) used by live tiles, or ``None`` if none is found.
+    Cached after the first lookup."""
+    if _symbol_font_cache:
+        return _symbol_font_cache[0]
+
+    try:
+        output = subprocess.run(["fc-list"], capture_output=True, text=True, check=False).stdout
+    except (OSError, subprocess.SubprocessError):
+        output = ""
+    candidates = [(line.lower(), line.split(":", 1)[0].strip()) for line in output.splitlines()]
+
+    needed = (0x30, 0x2191, 0x2193)  # "0", up arrow, down arrow
+
+    def has_glyphs(path: str) -> bool:
+        cmap = _font_codepoint_to_name(path)
+        return bool(cmap) and all(code_point in cmap for code_point in needed)
+
+    result: Optional[str] = None
+    for needle in _SYMBOL_FONT_NEEDLES:
+        for lowered, path in candidates:
+            if path and needle in lowered and has_glyphs(path):
+                result = path
+                break
+        if result:
+            break
+
+    _symbol_font_cache.append(result)
+    return result
+
+
 def recolor_icon(src_path: str, color_hex: str, cache_dir: str = FONT_ICON_CACHE_DIR) -> str:
     """Returns a recoloured copy of a monochrome icon, tinting its opaque pixels
     to ``color_hex`` (e.g. ``#ff8800``). Returns the original path unchanged if

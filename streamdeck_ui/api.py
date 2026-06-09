@@ -862,12 +862,24 @@ class StreamDeckServer:
         memory, network, clock) plus a Leave Auto key. It is an auto page but is
         bound to no application, so it acts as the fallback dashboard."""
         from streamdeck_ui.config import SWITCH_PAGE_LEAVE_AUTO
-        from streamdeck_ui.modules.font_icons import render_named_solid_icon
+        from streamdeck_ui.modules.font_icons import find_symbol_font, render_named_solid_icon
 
         page = self.add_new_page(serial_number)
         if page not in self.state[serial_number].auto_pages:
             self.state[serial_number].auto_pages.append(page)
         self.state[serial_number].home_page = page
+
+        # The live tiles show centered text on a tinted tile; a font that carries
+        # the up/down arrows (the network tile uses them) is used when available.
+        tile_color = "#1f2230"
+        symbol_font = find_symbol_font()
+
+        def style_tile(index: int) -> None:
+            self.set_button_text_vertical_align(serial_number, page, index, "middle")
+            self.set_button_text_horizontal_align(serial_number, page, index, "center")
+            self.set_button_background_color(serial_number, page, index, tile_color)
+            if symbol_font:
+                self.set_button_font(serial_number, page, index, symbol_font)
 
         count = self.get_page_button_count(serial_number, page)
         index = 0
@@ -875,9 +887,13 @@ class StreamDeckServer:
             if index >= count:
                 break
             self.set_button_live_source(serial_number, page, index, source)
+            style_tile(index)
             index += 1
         if index < count:
             self.set_button_text(serial_number, page, index, "Leave")
+            self.set_button_text_vertical_align(serial_number, page, index, "middle")
+            self.set_button_text_horizontal_align(serial_number, page, index, "center")
+            self.set_button_background_color(serial_number, page, index, tile_color)
             self.set_button_switch_page(serial_number, page, index, SWITCH_PAGE_LEAVE_AUTO)
             icon = render_named_solid_icon("right-from-bracket")
             if icon:

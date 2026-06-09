@@ -88,6 +88,39 @@ def test_recolor_icon_tints_opaque_pixels(tmp_path):
     assert recolored.getpixel((0, 0)) == (255, 136, 0, 255)
 
 
+def test_find_symbol_font_prefers_a_font_with_arrows():
+    font_icons._symbol_font_cache.clear()
+    sample = (
+        "/usr/share/fonts/Roboto-Regular.ttf: Roboto:style=Regular\n"
+        "/usr/share/fonts/DejaVuSans.ttf: DejaVu Sans:style=Book\n"
+    )
+
+    # Only DejaVu has the digit + both arrows.
+    def fake_cmap(path):
+        if "DejaVu" in path:
+            return {0x30: "zero", 0x2191: "up", 0x2193: "down"}
+        return {0x30: "zero"}
+
+    try:
+        with patch("subprocess.run") as run, patch.object(font_icons, "_font_codepoint_to_name", side_effect=fake_cmap):
+            run.return_value.stdout = sample
+            assert font_icons.find_symbol_font().endswith("DejaVuSans.ttf")
+    finally:
+        font_icons._symbol_font_cache.clear()
+
+
+def test_find_symbol_font_none_when_no_arrows():
+    font_icons._symbol_font_cache.clear()
+    try:
+        with patch("subprocess.run") as run, patch.object(
+            font_icons, "_font_codepoint_to_name", return_value={0x30: "zero"}
+        ):
+            run.return_value.stdout = "/usr/share/fonts/Roboto-Regular.ttf: Roboto:style=Regular\n"
+            assert font_icons.find_symbol_font() is None
+    finally:
+        font_icons._symbol_font_cache.clear()
+
+
 def test_add_drop_shadow_pads_and_keeps_icon(tmp_path):
     src = tmp_path / "white.png"
     Image.new("RGBA", (16, 16), (255, 255, 255, 255)).save(src)

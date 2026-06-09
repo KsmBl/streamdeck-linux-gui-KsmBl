@@ -70,6 +70,10 @@ def test_seed_default_auto_pages(api_server):
     home = api_server.get_home_page(STREAMDECK_SERIAL)
     assert home in api_server.get_auto_pages(STREAMDECK_SERIAL)
     assert api_server.get_focus_app_for_page(STREAMDECK_SERIAL, home) is None
+    # Its live tiles are centred on a tinted tile.
+    assert api_server.get_button_text_vertical_align(STREAMDECK_SERIAL, home, 0) == "middle"
+    assert api_server.get_button_text_horizontal_align(STREAMDECK_SERIAL, home, 0) == "center"
+    assert api_server.get_button_background_color(STREAMDECK_SERIAL, home, 0) == "#1f2230"
     # Presets with an application are bound to it.
     apps = set(api_server.get_focus_pages(STREAMDECK_SERIAL).keys())
     assert {"firefox", "vivaldi", "thunar", "gimp"} <= apps

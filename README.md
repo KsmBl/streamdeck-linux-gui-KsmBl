@@ -50,9 +50,10 @@ credit for the original work goes to its authors and contributors.
   automatically. It comes ready to use: on first run it is **pre-populated with a Home dashboard plus
   one page per control preset, each bound to its application** (Firefox, Vivaldi, Thunar, GIMP, …).
   Each auto page is shown the moment its app is focused — but only while the deck is *in* the Auto
-  group, so the deck follows your focus only when you want it to. When the focused app has no preset
-  the deck falls back to the **Home** page — a live dashboard with CPU temperature, CPU and memory
-  usage, network speed, a clock and a Leave Auto key. Use a **Go to Auto** key to enter the group and a **Leave Auto**
+  group, so the deck follows your focus only when you want it to. When the focused app has no preset —
+  or nothing is focused at all — the deck falls back to the **Home** page: a live dashboard with CPU
+  temperature, CPU and memory usage, network speed, a clock and a Leave Auto key (centred tiles that
+  use a font with the up/down network arrows when one is available). Use a **Go to Auto** key to enter the group and a **Leave Auto**
   key to return to your normal pages (the **◀ Prev** / **Next ▶** page keys stay on your normal pages
   and never wander into the auto pages). From the Auto tab you can add an application (seeded with a
   control preset), change which application a page follows (with a **Detect application** button that

@@ -56,9 +56,11 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   sowie je einer Seite pro Steuerungs-Vorlage vorbefüllt, jeweils an deren Programm gebunden** (Firefox,
   Vivaldi, Thunar, GIMP, …). Jede Auto-Seite wird angezeigt, sobald ihr Programm den Fokus erhält —
   allerdings nur, solange sich das Deck *in* der Auto-Gruppe befindet, sodass es Ihrem Fokus nur dann
-  folgt, wenn Sie es möchten. Hat das fokussierte Programm keine Vorlage, fällt das Deck auf die
-  **Home**-Seite zurück — ein Live-Dashboard mit CPU-Temperatur, CPU- und Speicherauslastung,
-  Netzwerktempo, einer Uhr und einer „Leave Auto“-Taste. Mit einer **Go to Auto**-Taste betreten Sie
+  folgt, wenn Sie es möchten. Hat das fokussierte Programm keine Vorlage — oder ist gar nichts
+  fokussiert —, fällt das Deck auf die **Home**-Seite zurück: ein Live-Dashboard mit CPU-Temperatur,
+  CPU- und Speicherauslastung, Netzwerktempo, einer Uhr und einer „Leave Auto“-Taste (zentrierte
+  Kacheln, die eine Schrift mit den Auf-/Ab-Pfeilen des Netzwerks verwenden, sofern verfügbar). Mit
+  einer **Go to Auto**-Taste betreten Sie
   die Gruppe, mit **Leave Auto** kehren Sie zu
   Ihren normalen Seiten zurück (die Tasten **◀ Prev** / **Next ▶** bleiben auf den normalen Seiten und
   wechseln nie in die Auto-Seiten). Im Auto-Reiter können Sie ein Programm hinzufügen (mit einer

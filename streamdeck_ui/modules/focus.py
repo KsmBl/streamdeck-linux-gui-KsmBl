@@ -226,9 +226,11 @@ class FocusWatcher(QThread):
         last: Optional[str] = None
         while self._running:
             app = get_focused_app()
-            if app and app != last:
+            if app != last:
                 last = app
-                self.focus_changed.emit(app)
+                # Emit "" when focus is lost (no window focused) so listeners can
+                # react to "nothing focused" too.
+                self.focus_changed.emit(app or "")
             self.msleep(self._interval_ms)
 
     def stop(self) -> None:
