@@ -74,6 +74,25 @@ def test_seed_default_auto_pages(api_server):
     assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS)
 
 
+def test_reset_auto_pages_restores_defaults(api_server):
+    from streamdeck_ui.modules.control_presets import CONTROL_PRESETS
+
+    # Start from an edited Auto group: an extra custom page and an overlay.
+    api_server.state[STREAMDECK_SERIAL].auto_pages_seeded = True
+    api_server.add_auto_page(STREAMDECK_SERIAL, "custom-app")
+    overlay = api_server.add_new_page(STREAMDECK_SERIAL)
+    api_server.set_overlay_page(STREAMDECK_SERIAL, overlay)
+
+    api_server.reset_auto_pages(STREAMDECK_SERIAL)
+
+    # The overlay is gone and the defaults are back.
+    assert api_server.get_overlay_page(STREAMDECK_SERIAL) is None
+    assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS)
+    apps = set(api_server.get_focus_pages(STREAMDECK_SERIAL).keys())
+    assert {"firefox", "discord", "vlc"} <= apps
+    assert "custom-app" not in apps
+
+
 def test_resolve_overlay_passthrough_on_normal_page(api_server):
     overlay = api_server.add_new_page(STREAMDECK_SERIAL)
     api_server.set_overlay_page(STREAMDECK_SERIAL, overlay)

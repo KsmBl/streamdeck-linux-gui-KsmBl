@@ -2560,6 +2560,13 @@ def _build_auto_tab(ui, deck_id: str) -> QWidget:
     return auto_tab
 
 
+def _rebuild_to_auto_tab(ui) -> None:
+    """Rebuilds the device UI and selects the Auto tab (it is always last)."""
+    build_device(ui)
+    if ui.pages.count():
+        ui.pages.setCurrentIndex(ui.pages.count() - 1)
+
+
 class AutoPagePanel(QWidget):
     """The contents of the Auto tab: a manager for the per-application auto pages
     and the shared overlay drawn on top of them. Editing a page happens in place
@@ -2605,12 +2612,20 @@ class AutoPagePanel(QWidget):
         overlay_row.addWidget(self.remove_overlay_button)
         layout.addLayout(overlay_row)
 
+        reset_row = QHBoxLayout()
+        reset_row.addStretch(1)
+        self.reset_button = QPushButton("Reset to defaults", self)
+        self.reset_button.setToolTip("Delete all auto pages and the overlay and restore the default presets")
+        reset_row.addWidget(self.reset_button)
+        layout.addLayout(reset_row)
+
         self.add_button.clicked.connect(self._add)
         self.change_button.clicked.connect(self._change)
         self.edit_button.clicked.connect(self._edit)
         self.remove_button.clicked.connect(self._remove)
         self.edit_overlay_button.clicked.connect(self._edit_overlay)
         self.remove_overlay_button.clicked.connect(self._remove_overlay)
+        self.reset_button.clicked.connect(self._reset)
         back.clicked.connect(self._leave_editor)
         self.list.itemSelectionChanged.connect(self._update_enabled)
         self.list.itemDoubleClicked.connect(lambda _item: self._edit())
@@ -2731,6 +2746,23 @@ class AutoPagePanel(QWidget):
         api.clear_overlay_page(self._deck_id)
         api.remove_page(self._deck_id, overlay)
         self.refresh()
+
+    def _reset(self) -> None:
+        confirm = QMessageBox(self)
+        confirm.setWindowTitle("Reset auto pages")
+        confirm.setText(
+            "Delete all auto pages and the overlay and restore the default presets?\n\nThis cannot be undone."
+        )
+        confirm.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        confirm.setDefaultButton(QMessageBox.StandardButton.No)
+        confirm.setIcon(QMessageBox.Icon.Warning)
+        if confirm.exec() != QMessageBox.StandardButton.Yes:
+            return
+        api.reset_auto_pages(self._deck_id)
+        update_focus_watcher(self._ui)
+        # Rebuild after the slot returns (this panel is replaced) and land on the
+        # freshly seeded Auto tab.
+        QTimer.singleShot(0, partial(_rebuild_to_auto_tab, self._ui))
 
 
 def build_control_presets_menu(ui) -> None:

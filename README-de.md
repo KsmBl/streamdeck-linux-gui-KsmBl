@@ -40,7 +40,8 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   Verlassen der Auto-Gruppe (siehe unten).
 * **Steuerungs-Vorlagen für Anwendungen** — eine Schaltfläche **Controls…** über den Seiten füllt die
   aktuelle Seite mit einem Klick mit einer fertigen Steuerflächen-Vorlage für ein Programm:
-  **Firefox**, **Vivaldi**, **Thunar**, **Vim**, **GIMP** oder einen **Medienplayer**. Jede Vorlage legt
+  **Firefox**, **Vivaldi**, **Thunar**, **Vim**, **GIMP**, **Discord**, **VLC** oder einen
+  **Medienplayer**. Jede Vorlage legt
   beschriftete Tasten mit Icon an (Neuer Tab, Zurück, Neu laden, Speichern, …), die das Programm über
   seine Tastenkürzel (bzw. die globalen Medientasten) steuern; die passenden Font-Awesome-Icons werden
   automatisch gesetzt (die Schrift ist mitgeliefert). Programmkürzel wirken auf das jeweils fokussierte
@@ -55,8 +56,9 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   wechseln nie in die Auto-Seiten). Im Auto-Reiter können Sie ein Programm hinzufügen (mit einer
   Steuerungs-Vorlage vorbefüllt), das einer Seite zugeordnete Programm ändern (mit einer **Detect
   application**-Schaltfläche, die fünf Sekunden wartet, damit Sie zuvor das Zielfenster fokussieren
-  können), die Tasten jeder Seite direkt bearbeiten und ein **Overlay** festlegen — eine Ebene, deren
-  Tasten über *allen* Auto-Seiten liegen, ideal für eine gemeinsame „Leave Auto“- oder Medienzeile.
+  können), die Tasten jeder Seite direkt bearbeiten, ein **Overlay** festlegen — eine Ebene, deren
+  Tasten über *allen* Auto-Seiten liegen, ideal für eine gemeinsame „Leave Auto“- oder Medienzeile —
+  und mit **Reset to defaults** die ganze Gruppe verwerfen und die Standard-Vorlagen wiederherstellen.
   Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit `kdotool`); Compositoren, die
   das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland), lassen die Funktion einfach inaktiv.
 * **Designs** — wählen Sie unter **View** ein Basis-Design: das **Default**-Design (Plattformlook),
