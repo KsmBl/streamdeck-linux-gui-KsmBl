@@ -2698,7 +2698,23 @@ class AutoPagePanel(QWidget):
         api.set_page(self._deck_id, page)
         api.reset_dimmer(self._deck_id)
         redraw_buttons()
+        self._mark_overlaid_keys(page)
         build_button_state_pages()
+
+    def _mark_overlaid_keys(self, page: int) -> None:
+        """Greys out and labels keys that the overlay covers on this page, so it
+        is clear that editing them has no effect (the overlay wins)."""
+        for button in self._grid.findChildren(QToolButton):
+            index = button.property("index")
+            if index is None:
+                continue
+            source_page, _ = api.resolve_overlay(self._deck_id, page, index)
+            if source_page != page:
+                button.setEnabled(False)
+                button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+                button.setIcon(QIcon())
+                button.setText("overlay")
+                button.setToolTip("Covered by the overlay — editing this key has no effect here")
 
     def _leave_editor(self) -> None:
         """Returns from the editor to the auto-page list."""

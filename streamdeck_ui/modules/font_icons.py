@@ -640,6 +640,23 @@ _SYMBOL_FONT_NEEDLES = ("dejavu sans", "noto sans", "liberation sans", "freesans
 _symbol_font_cache: List[Optional[str]] = []
 
 
+def find_font_by_name(*needles: str) -> Optional[str]:
+    """Returns the path of an installed font whose fontconfig description contains
+    all of ``needles`` (case-insensitive), or ``None``. Used to pick a specific
+    family/weight, e.g. ``find_font_by_name("jetbrainsmononl", "nfp", "extrabold")``."""
+    try:
+        output = subprocess.run(["fc-list"], capture_output=True, text=True, check=False).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    wanted = tuple(needle.lower() for needle in needles)
+    for line in output.splitlines():
+        path = line.split(":", 1)[0].strip()
+        lowered = line.lower()
+        if path and all(needle in lowered for needle in wanted):
+            return path
+    return None
+
+
 def find_symbol_font() -> Optional[str]:
     """Returns a system font path that can render every glyph the live Home tiles
     use — a digit, ``%``, the degree sign and the up/down network arrows — or

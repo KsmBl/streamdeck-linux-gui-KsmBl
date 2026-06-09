@@ -1,3 +1,6 @@
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QToolButton
+
 from streamdeck_ui import gui
 from streamdeck_ui.gui import AutoPagePanel
 from tests.common import STREAMDECK_SERIAL
@@ -119,3 +122,30 @@ def test_edit_auto_page_in_place_without_adding_a_tab(api_and_window):
     panel._leave_editor()
     assert auto_tab.editing_page is None
     assert auto_tab.auto_stack.currentWidget() is panel
+
+
+def test_editing_auto_page_greys_overlaid_keys(api_and_window, mocker):
+    main_window, api = api_and_window
+    ui = main_window.ui
+    mocker.patch.object(api, "get_deck_layout", return_value=(1, 3))  # 3 on-screen keys
+    page = api.add_auto_page(STREAMDECK_SERIAL, "firefox")
+    overlay = api.add_new_page(STREAMDECK_SERIAL)
+    api.set_overlay_page(STREAMDECK_SERIAL, overlay)
+    api.set_button_text(STREAMDECK_SERIAL, overlay, 0, "X")  # overlay covers key 0
+    gui.build_device(ui, api)
+
+    auto_tab = _auto_tab(ui)
+    ui.pages.setCurrentWidget(auto_tab)
+    panel = auto_tab.findChild(AutoPagePanel)
+    for row in range(panel.list.count()):
+        if panel.list.item(row).data(Qt.ItemDataRole.UserRole) == page:
+            panel.list.setCurrentRow(row)
+            break
+    panel._edit()
+
+    buttons = {b.property("index"): b for b in panel._grid.findChildren(QToolButton)}
+    # Key 0 is covered by the overlay: greyed out and labelled, editing it is futile.
+    assert buttons[0].text() == "overlay"
+    assert not buttons[0].isEnabled()
+    # An uncovered key stays editable.
+    assert buttons[1].isEnabled()

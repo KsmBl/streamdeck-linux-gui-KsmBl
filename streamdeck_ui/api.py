@@ -857,43 +857,43 @@ class StreamDeckServer:
         has no preset), or None when not configured."""
         return self.state[serial_number].home_page
 
-    # Live dashboard tiles for the Home page: (source, fitting font colour).
+    # Live dashboard tiles for the Home page: (source, fitting background colour).
     _HOME_TILES = (
-        ("cpu_temp", "#ff7043"),  # warm orange (heat)
-        ("cpu", "#42a5f5"),  # blue
-        ("memory", "#66bb6a"),  # green
-        ("network", "#26c6da"),  # cyan
-        ("clock", "#ffca28"),  # amber
+        ("cpu_temp", "#c62828"),  # red (heat)
+        ("cpu", "#2e7d32"),  # green
+        ("memory", "#f9a825"),  # yellow
+        ("network", "#1565c0"),  # blue
+        ("clock", "#7e57c2"),  # violet
     )
 
     def _build_home_page(self, serial_number: str) -> int:
         """Creates the Home auto page: live-info tiles (CPU temperature/usage,
         memory, network, clock). It is an auto page bound to no application, so it
         acts as the fallback dashboard."""
-        from streamdeck_ui.modules.font_icons import find_symbol_font
+        from streamdeck_ui.modules.font_icons import find_font_by_name, find_symbol_font
 
         page = self.add_new_page(serial_number)
         if page not in self.state[serial_number].auto_pages:
             self.state[serial_number].auto_pages.append(page)
         self.state[serial_number].home_page = page
 
-        # Centered, slightly larger text on a tinted tile, each stat in a fitting
-        # colour; a font that carries the up/down network arrows is used when found.
-        tile_color = "#1f2230"
-        symbol_font = find_symbol_font()
+        # Large, centered, white text on a per-stat coloured tile. Prefer the
+        # requested JetBrainsMono NL NFP ExtraBold; fall back to any font that
+        # carries the up/down network arrows, else the default font.
+        tile_font = find_font_by_name("jetbrainsmononl", "nfp", "extrabold") or find_symbol_font()
 
         count = self.get_page_button_count(serial_number, page)
-        for index, (source, color) in enumerate(self._HOME_TILES):
+        for index, (source, background) in enumerate(self._HOME_TILES):
             if index >= count:
                 break
             self.set_button_live_source(serial_number, page, index, source)
             self.set_button_text_vertical_align(serial_number, page, index, "middle")
             self.set_button_text_horizontal_align(serial_number, page, index, "center")
-            self.set_button_background_color(serial_number, page, index, tile_color)
-            self.set_button_font_size(serial_number, page, index, 18)
-            self.set_button_font_color(serial_number, page, index, color)
-            if symbol_font:
-                self.set_button_font(serial_number, page, index, symbol_font)
+            self.set_button_background_color(serial_number, page, index, background)
+            self.set_button_font_size(serial_number, page, index, 28)
+            self.set_button_font_color(serial_number, page, index, "#ffffff")
+            if tile_font:
+                self.set_button_font(serial_number, page, index, tile_font)
         return page
 
     def seed_default_auto_pages(self, serial_number: str) -> None:
