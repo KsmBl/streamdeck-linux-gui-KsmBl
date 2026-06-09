@@ -318,22 +318,395 @@ _GITTYUP = ControlPreset(
     app="gittyup",
 )
 
+
+def _browser_actions(reload: str, private: str, downloads: str) -> List[ControlAction]:
+    """The shared browser control surface; the few differing shortcuts (reload,
+    private window, downloads) are passed in per browser."""
+    return [
+        ControlAction("New\nTab", "ctrl+t", icon="plus"),
+        ControlAction("Close\nTab", "ctrl+w", icon="xmark"),
+        ControlAction("Reopen\nTab", "ctrl+shift+t", icon="rotate-left"),
+        ControlAction("Next\nTab", "ctrl+tab", icon="chevron-right"),
+        ControlAction("Prev\nTab", "ctrl+shift+tab", icon="chevron-left"),
+        ControlAction("Back", "alt+left", icon="arrow-left"),
+        ControlAction("Fwd", "alt+right", icon="arrow-right"),
+        ControlAction("Reload", reload, icon="arrows-rotate"),
+        ControlAction("Address\nBar", "ctrl+l", icon="globe"),
+        ControlAction("Find", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("New\nWindow", "ctrl+n", icon="window-restore"),
+        ControlAction("Private\nWindow", private, icon="user-secret"),
+        ControlAction("Downloads", downloads, icon="download"),
+        ControlAction("Full\nScreen", "f11", icon="expand"),
+    ]
+
+
+def _file_manager_actions() -> List[ControlAction]:
+    """The shared file-manager control surface (GNOME/GTK shortcut style)."""
+    return [
+        ControlAction("New\nTab", "ctrl+t", icon="plus"),
+        ControlAction("New\nWindow", "ctrl+n", icon="window-restore"),
+        ControlAction("Close\nTab", "ctrl+w", icon="xmark"),
+        ControlAction("Back", "alt+left", icon="arrow-left"),
+        ControlAction("Fwd", "alt+right", icon="arrow-right"),
+        ControlAction("Up", "alt+up", icon="arrow-up"),
+        ControlAction("Home", "alt+home", icon="house"),
+        ControlAction("Reload", "f5", icon="arrows-rotate"),
+        ControlAction("New\nFolder", "ctrl+shift+n", icon="folder-plus"),
+        ControlAction("Rename", "f2", icon="pen"),
+        ControlAction("Delete", "delete", icon="trash"),
+        ControlAction("Find", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("Select\nAll", "ctrl+a", icon="check-double"),
+        ControlAction("Hidden\nFiles", "ctrl+h", icon="eye"),
+    ]
+
+
+def _terminal_actions() -> List[ControlAction]:
+    """The shared terminal control surface (GNOME/kitty shortcut style)."""
+    return [
+        ControlAction("New\nTab", "ctrl+shift+t", icon="plus"),
+        ControlAction("New\nWindow", "ctrl+shift+n", icon="window-restore"),
+        ControlAction("Close\nTab", "ctrl+shift+w", icon="xmark"),
+        ControlAction("Copy", "ctrl+shift+c", icon="copy"),
+        ControlAction("Paste", "ctrl+shift+v", icon="paste"),
+        ControlAction("Prev\nTab", "ctrl+pageup", icon="chevron-left"),
+        ControlAction("Next\nTab", "ctrl+pagedown", icon="chevron-right"),
+        ControlAction("Find", "ctrl+shift+f", icon="magnifying-glass"),
+        ControlAction("Full\nScreen", "f11", icon="expand"),
+    ]
+
+
+_CHROMIUM = ControlPreset("Chromium", _browser_actions("ctrl+r", "ctrl+shift+n", "ctrl+j"), app="chromium")
+_CHROME = ControlPreset("Chrome", _browser_actions("ctrl+r", "ctrl+shift+n", "ctrl+j"), app="google-chrome")
+_BRAVE = ControlPreset("Brave", _browser_actions("ctrl+r", "ctrl+shift+n", "ctrl+j"), app="brave-browser")
+_LIBREWOLF = ControlPreset("LibreWolf", _browser_actions("f5", "ctrl+shift+p", "ctrl+shift+y"), app="librewolf")
+_ZEN = ControlPreset("Zen Browser", _browser_actions("f5", "ctrl+shift+p", "ctrl+shift+y"), app="zen")
+
+_NAUTILUS = ControlPreset("Files (Nautilus)", _file_manager_actions(), app="org.gnome.nautilus")
+_NEMO = ControlPreset("Nemo (files)", _file_manager_actions(), app="nemo")
+_PCMANFM = ControlPreset("PCManFM (files)", _file_manager_actions(), app="pcmanfm")
+
+_GNOME_TERMINAL = ControlPreset("GNOME Terminal", _terminal_actions(), app="gnome-terminal")
+_KITTY = ControlPreset("kitty", _terminal_actions(), app="kitty")
+
+_VSCODE = ControlPreset(
+    "VS Code",
+    [
+        ControlAction("Command\nPalette", "ctrl+shift+p", icon="bars"),
+        ControlAction("Quick\nOpen", "ctrl+p", icon="magnifying-glass"),
+        ControlAction("Find", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("Replace", "ctrl+h", icon="pen-to-square"),
+        ControlAction("Save", "ctrl+s", icon="floppy-disk"),
+        ControlAction("New\nFile", "ctrl+n", icon="file"),
+        ControlAction("Sidebar", "ctrl+b", icon="bars"),
+        ControlAction("Search", "ctrl+shift+f", icon="magnifying-glass"),
+        ControlAction("Source\nControl", "ctrl+shift+g", icon="code-branch"),
+        ControlAction("Terminal", "ctrl+j", icon="terminal"),
+        ControlAction("Go to\nLine", "ctrl+g", icon="arrow-right"),
+        ControlAction("Format", "shift+alt+f", icon="wand-magic-sparkles"),
+    ],
+    app="code",
+)
+
+_SUBLIME = ControlPreset(
+    "Sublime Text",
+    [
+        ControlAction("Command\nPalette", "ctrl+shift+p", icon="bars"),
+        ControlAction("Goto\nAnything", "ctrl+p", icon="magnifying-glass"),
+        ControlAction("Find", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("Replace", "ctrl+h", icon="pen-to-square"),
+        ControlAction("Save", "ctrl+s", icon="floppy-disk"),
+        ControlAction("New\nFile", "ctrl+n", icon="file"),
+        ControlAction("Goto\nLine", "ctrl+g", icon="arrow-right"),
+        ControlAction("Undo", "ctrl+z", icon="rotate-left"),
+        ControlAction("Redo", "ctrl+shift+z", icon="rotate-right"),
+    ],
+    app="sublime_text",
+)
+
+_OBSIDIAN = ControlPreset(
+    "Obsidian",
+    [
+        ControlAction("Command\nPalette", "ctrl+p", icon="bars"),
+        ControlAction("Quick\nSwitch", "ctrl+o", icon="magnifying-glass"),
+        ControlAction("Search", "ctrl+shift+f", icon="magnifying-glass"),
+        ControlAction("New\nNote", "ctrl+n", icon="file"),
+        ControlAction("Bold", "ctrl+b", icon="bold"),
+        ControlAction("Italic", "ctrl+i", icon="italic"),
+        ControlAction("Insert\nLink", "ctrl+k", icon="link"),
+        ControlAction("Edit /\nPreview", "ctrl+e", icon="pen-to-square"),
+        ControlAction("Graph", "ctrl+g", icon="share"),
+        ControlAction("Back", "alt+left", icon="arrow-left"),
+    ],
+    app="obsidian",
+)
+
+_KRITA = ControlPreset(
+    "Krita",
+    [
+        ControlAction("New", "ctrl+n", icon="file"),
+        ControlAction("Save", "ctrl+s", icon="floppy-disk"),
+        ControlAction("Undo", "ctrl+z", icon="rotate-left"),
+        ControlAction("Redo", "ctrl+shift+z", icon="rotate-right"),
+        ControlAction("Brush", "b", icon="paintbrush"),
+        ControlAction("Eraser", "e", icon="eraser"),
+        ControlAction("Gradient", "g", icon="fill-drip"),
+        ControlAction("Line", "v", icon="pen"),
+        ControlAction("Transform", "ctrl+t", icon="crop-simple"),
+        ControlAction("Mirror\nView", "m", icon="image"),
+    ],
+    app="krita",
+)
+
+_INKSCAPE = ControlPreset(
+    "Inkscape",
+    [
+        ControlAction("Save", "ctrl+s", icon="floppy-disk"),
+        ControlAction("Undo", "ctrl+z", icon="rotate-left"),
+        ControlAction("Redo", "ctrl+shift+z", icon="rotate-right"),
+        ControlAction("Select", "s", icon="i-cursor"),
+        ControlAction("Pen", "b", icon="pen"),
+        ControlAction("Text", "t", icon="pen-to-square"),
+        ControlAction("Duplicate", "ctrl+d", icon="copy"),
+        ControlAction("Group", "ctrl+g", icon="bars"),
+        ControlAction("Fill &\nStroke", "ctrl+shift+f", icon="palette"),
+        ControlAction("Export", "ctrl+shift+e", icon="file-export"),
+    ],
+    app="inkscape",
+)
+
+_BLENDER = ControlPreset(
+    "Blender",
+    [
+        ControlAction("Grab", "g", icon="arrow-right"),
+        ControlAction("Rotate", "r", icon="rotate-right"),
+        ControlAction("Scale", "s", icon="expand"),
+        ControlAction("Extrude", "e", icon="plus"),
+        ControlAction("Delete", "x", icon="trash"),
+        ControlAction("Add", "shift+a", icon="plus"),
+        ControlAction("Edit\nMode", "tab", icon="pen"),
+        ControlAction("Save", "ctrl+s", icon="floppy-disk"),
+        ControlAction("Undo", "ctrl+z", icon="rotate-left"),
+        ControlAction("Render", "f12", icon="image"),
+    ],
+    app="blender",
+)
+
+_KDENLIVE = ControlPreset(
+    "Kdenlive",
+    [
+        ControlAction("Play /\nPause", "space", icon="play"),
+        ControlAction("Save", "ctrl+s", icon="floppy-disk"),
+        ControlAction("Undo", "ctrl+z", icon="rotate-left"),
+        ControlAction("Redo", "ctrl+shift+z", icon="rotate-right"),
+        ControlAction("Set In", "i", icon="chevron-left"),
+        ControlAction("Set Out", "o", icon="chevron-right"),
+        ControlAction("Delete", "delete", icon="trash"),
+        ControlAction("Render", "ctrl+enter", icon="film"),
+        ControlAction("Full\nScreen", "f11", icon="expand"),
+    ],
+    app="org.kde.kdenlive",
+)
+
+_OKULAR = ControlPreset(
+    "Okular (PDF)",
+    [
+        ControlAction("Prev\nPage", "pageup", icon="chevron-left"),
+        ControlAction("Next\nPage", "pagedown", icon="chevron-right"),
+        ControlAction("Find", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("Zoom\nIn", "ctrl+plus", icon="magnifying-glass-plus"),
+        ControlAction("Zoom\nOut", "ctrl+minus", icon="magnifying-glass"),
+        ControlAction("Open", "ctrl+o", icon="folder-open"),
+        ControlAction("Go to\nPage", "ctrl+g", icon="arrow-right"),
+        ControlAction("Present", "ctrl+shift+p", icon="expand"),
+        ControlAction("Print", "ctrl+p", icon="print"),
+    ],
+    app="org.kde.okular",
+)
+
+_ZATHURA = ControlPreset(
+    "Zathura (PDF)",
+    [
+        ControlAction("Down", "j", icon="arrow-down"),
+        ControlAction("Up", "k", icon="arrow-up"),
+        ControlAction("Next\nPage", "space", icon="chevron-right"),
+        ControlAction("Open", "o", icon="folder-open"),
+        ControlAction("Index", "tab", icon="list-ul"),
+        ControlAction("Rotate", "r", icon="rotate-right"),
+        ControlAction("Zoom\nIn", "plus", icon="magnifying-glass-plus"),
+        ControlAction("Zoom\nOut", "minus", icon="magnifying-glass"),
+        ControlAction("Recolor", "ctrl+r", icon="palette"),
+        ControlAction("Full\nScreen", "f", icon="expand"),
+    ],
+    app="zathura",
+)
+
+_LIBRE_WRITER = ControlPreset(
+    "LibreOffice Writer",
+    [
+        ControlAction("New", "ctrl+n", icon="file"),
+        ControlAction("Open", "ctrl+o", icon="folder-open"),
+        ControlAction("Save", "ctrl+s", icon="floppy-disk"),
+        ControlAction("Print", "ctrl+p", icon="print"),
+        ControlAction("Bold", "ctrl+b", icon="bold"),
+        ControlAction("Italic", "ctrl+i", icon="italic"),
+        ControlAction("Underline", "ctrl+u", icon="underline"),
+        ControlAction("Undo", "ctrl+z", icon="rotate-left"),
+        ControlAction("Redo", "ctrl+y", icon="rotate-right"),
+        ControlAction("Find", "ctrl+f", icon="magnifying-glass"),
+    ],
+    app="libreoffice-writer",
+)
+
+_LIBRE_CALC = ControlPreset(
+    "LibreOffice Calc",
+    [
+        ControlAction("New", "ctrl+n", icon="file"),
+        ControlAction("Save", "ctrl+s", icon="floppy-disk"),
+        ControlAction("Print", "ctrl+p", icon="print"),
+        ControlAction("Bold", "ctrl+b", icon="bold"),
+        ControlAction("Sum", "alt+plus", icon="table"),
+        ControlAction("Find", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("Undo", "ctrl+z", icon="rotate-left"),
+        ControlAction("Redo", "ctrl+y", icon="rotate-right"),
+    ],
+    app="libreoffice-calc",
+)
+
+_SPOTIFY = ControlPreset(
+    "Spotify",
+    [
+        ControlAction("Play /\nPause", "space", icon="play"),
+        ControlAction("Next", "ctrl+right", icon="forward-step"),
+        ControlAction("Prev", "ctrl+left", icon="backward-step"),
+        ControlAction("Vol +", "ctrl+up", icon="volume-high"),
+        ControlAction("Vol -", "ctrl+down", icon="volume-low"),
+        ControlAction("Search", "ctrl+l", icon="magnifying-glass"),
+        ControlAction("Repeat", "ctrl+r", icon="repeat"),
+        ControlAction("Shuffle", "ctrl+s", icon="shuffle"),
+    ],
+    app="spotify",
+)
+
+_MPV = ControlPreset(
+    "mpv",
+    [
+        ControlAction("Play /\nPause", "space", icon="play"),
+        ControlAction("Seek +", "right", icon="forward"),
+        ControlAction("Seek -", "left", icon="backward"),
+        ControlAction("Vol +", "up", icon="volume-high"),
+        ControlAction("Vol -", "down", icon="volume-low"),
+        ControlAction("Mute", "m", icon="volume-xmark"),
+        ControlAction("Subtitle", "v", icon="closed-captioning"),
+        ControlAction("Full\nScreen", "f", icon="expand"),
+    ],
+    app="mpv",
+)
+
+_AUDACIOUS = ControlPreset(
+    "Audacious",
+    [
+        ControlAction("Play", "ctrl+enter", icon="play"),
+        ControlAction("Stop", "v", icon="stop"),
+        ControlAction("Prev", "z", icon="backward-step"),
+        ControlAction("Next", "b", icon="forward-step"),
+        ControlAction("Vol +", "up", icon="volume-high"),
+        ControlAction("Vol -", "down", icon="volume-low"),
+    ],
+    app="audacious",
+)
+
+_SLACK = ControlPreset(
+    "Slack",
+    [
+        ControlAction("Quick\nSwitch", "ctrl+k", icon="magnifying-glass"),
+        ControlAction("Search", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("Unreads", "ctrl+shift+a", icon="envelope"),
+        ControlAction("Threads", "ctrl+shift+t", icon="comments"),
+        ControlAction("DMs", "ctrl+shift+k", icon="comments"),
+        ControlAction("Prev\nChannel", "alt+up", icon="chevron-up"),
+        ControlAction("Next\nChannel", "alt+down", icon="chevron-down"),
+        ControlAction("Back", "alt+left", icon="arrow-left"),
+        ControlAction("Fwd", "alt+right", icon="arrow-right"),
+        ControlAction("Mark\nRead", "esc", icon="check-double"),
+    ],
+    app="slack",
+)
+
+_TELEGRAM = ControlPreset(
+    "Telegram",
+    [
+        ControlAction("Search", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("Next\nChat", "ctrl+tab", icon="chevron-down"),
+        ControlAction("Prev\nChat", "ctrl+shift+tab", icon="chevron-up"),
+        ControlAction("Back", "esc", icon="arrow-left"),
+    ],
+    app="telegram-desktop",
+)
+
+_ELEMENT = ControlPreset(
+    "Element",
+    [
+        ControlAction("Search", "ctrl+k", icon="magnifying-glass"),
+        ControlAction("Prev\nRoom", "alt+up", icon="chevron-up"),
+        ControlAction("Next\nRoom", "alt+down", icon="chevron-down"),
+        ControlAction("Prev\nUnread", "alt+shift+up", icon="envelope"),
+        ControlAction("Next\nUnread", "alt+shift+down", icon="envelope"),
+    ],
+    app="element",
+)
+
 # Order shown in the menu.
 CONTROL_PRESETS: List[ControlPreset] = [
+    # Browsers
     _FIREFOX,
     _VIVALDI,
+    _CHROMIUM,
+    _CHROME,
+    _BRAVE,
+    _LIBREWOLF,
+    _ZEN,
+    # File managers
     _THUNAR,
     _DOLPHIN,
+    _NAUTILUS,
+    _NEMO,
+    _PCMANFM,
+    # Terminals
     _XFCE_TERMINAL,
     _KONSOLE,
+    _GNOME_TERMINAL,
+    _KITTY,
+    # Editors / IDEs
     _VIM,
+    _VSCODE,
+    _SUBLIME,
+    _OBSIDIAN,
     _GITTYUP,
+    # Creative
     _GIMP,
+    _KRITA,
+    _INKSCAPE,
+    _BLENDER,
+    _KDENLIVE,
+    # Documents
+    _LIBRE_WRITER,
+    _LIBRE_CALC,
+    _OKULAR,
+    _ZATHURA,
+    # Communication
     _DISCORD,
+    _SLACK,
+    _TELEGRAM,
+    _ELEMENT,
     _THUNDERBIRD,
+    # Media
     _VLC,
-    _TETRIO,
+    _SPOTIFY,
+    _MPV,
+    _AUDACIOUS,
     _MEDIA,
+    # Games
+    _TETRIO,
 ]
 
 

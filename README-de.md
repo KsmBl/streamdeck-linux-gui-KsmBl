@@ -39,10 +39,14 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   vorgefertigtes Pfeil-Icon; mit **Go to Auto** / **Leave Auto** wird eine Taste zum Betreten bzw.
   Verlassen der Auto-Gruppe (siehe unten).
 * **Steuerungs-Vorlagen für Anwendungen** — eine Schaltfläche **Controls…** über den Seiten füllt die
-  aktuelle Seite mit einem Klick mit einer fertigen Steuerflächen-Vorlage für ein Programm: Browser
-  (**Firefox**, **Vivaldi**), Dateimanager (**Thunar**, **Dolphin**), Terminals (**Xfce Terminal**,
-  **Konsole**), **Vim**, **Gittyup**, **GIMP**, **Discord**, **Thunderbird**, **VLC**, **TETR.IO**
-  oder einen generischen **Medienplayer**. Jede Vorlage legt
+  aktuelle Seite mit einem Klick mit einer fertigen Steuerflächen-Vorlage für rund 40 Programme:
+  Browser (**Firefox**, **Vivaldi**, **Chromium**, **Chrome**, **Brave**, **LibreWolf**, **Zen**),
+  Dateimanager (**Thunar**, **Dolphin**, **Nautilus**, **Nemo**, **PCManFM**), Terminals (**Xfce
+  Terminal**, **Konsole**, **GNOME Terminal**, **kitty**), Editoren/IDEs (**Vim**, **VS Code**,
+  **Sublime Text**, **Obsidian**, **Gittyup**), Kreativ-Apps (**GIMP**, **Krita**, **Inkscape**,
+  **Blender**, **Kdenlive**), Dokumente (**LibreOffice Writer/Calc**, **Okular**, **Zathura**), Chat
+  (**Discord**, **Slack**, **Telegram**, **Element**, **Thunderbird**), Medien (**VLC**, **Spotify**,
+  **mpv**, **Audacious**, generischer **Medienplayer**) und **TETR.IO**. Jede Vorlage legt
   beschriftete Tasten mit Icon an (Neuer Tab, Zurück, Neu laden, Speichern, …), die das Programm über
   seine Tastenkürzel (bzw. die globalen Medientasten) steuern; die passenden Font-Awesome-Icons werden
   automatisch gesetzt (die Schrift ist mitgeliefert). Programmkürzel wirken auf das jeweils fokussierte

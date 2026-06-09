@@ -2,7 +2,7 @@ import pytest
 from PySide6.QtWidgets import QMessageBox, QPushButton
 
 from streamdeck_ui import gui
-from streamdeck_ui.modules.control_presets import ControlAction, ControlPreset
+from streamdeck_ui.modules.control_presets import CONTROL_PRESETS, ControlAction, ControlPreset
 from tests.common import STREAMDECK_SERIAL
 
 PRESET = ControlPreset(
@@ -23,22 +23,11 @@ def test_controls_button_has_a_menu(qtbot, api_and_window):
     main_window, _api = api_and_window
     menu = _apply_preset_button(main_window).menu()
     assert menu is not None
-    assert [action.text() for action in menu.actions()] == [
-        "Firefox",
-        "Vivaldi",
-        "Thunar (files)",
-        "Dolphin (files)",
-        "Xfce Terminal",
-        "Konsole",
-        "Vim",
-        "Gittyup",
-        "GIMP",
-        "Discord",
-        "Thunderbird",
-        "VLC",
-        "TETR.IO",
-        "Media player",
-    ]
+    # The menu lists every control preset, in order.
+    assert [action.text() for action in menu.actions()] == [preset.name for preset in CONTROL_PRESETS]
+    assert {"Firefox", "Dolphin (files)", "VS Code", "Blender", "Slack", "Spotify"} <= set(
+        preset.name for preset in CONTROL_PRESETS
+    )
 
 
 @pytest.mark.serial
