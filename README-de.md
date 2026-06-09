@@ -40,23 +40,25 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   Verlassen der Auto-Gruppe (siehe unten).
 * **Steuerungs-Vorlagen für Anwendungen** — eine Schaltfläche **Controls…** über den Seiten füllt die
   aktuelle Seite mit einem Klick mit einer fertigen Steuerflächen-Vorlage für ein Programm:
-  **Firefox**, **Vivaldi**, **Thunar**, **Vim** oder einen **Medienplayer**. Jede Vorlage legt
+  **Firefox**, **Vivaldi**, **Thunar**, **Vim**, **GIMP** oder einen **Medienplayer**. Jede Vorlage legt
   beschriftete Tasten mit Icon an (Neuer Tab, Zurück, Neu laden, Speichern, …), die das Programm über
   seine Tastenkürzel (bzw. die globalen Medientasten) steuern; die passenden Font-Awesome-Icons werden
   automatisch gesetzt (die Schrift ist mitgeliefert). Programmkürzel wirken auf das jeweils fokussierte
   Fenster — kombinieren Sie eine Vorlage mit einer **Auto-Seite**, um automatisch dorthin zu wechseln.
 * **Auto-Seiten** — ein **Auto**-Reiter bündelt mehrere anwendungsbezogene Seiten, denen das Deck
-  automatisch folgt. Jede Auto-Seite ist an ein Programm gebunden und wird angezeigt, sobald dieses
-  den Fokus erhält — allerdings nur, solange sich das Deck *in* der Auto-Gruppe befindet, sodass es
-  Ihrem Fokus nur dann folgt, wenn Sie es möchten. Mit einer **Go to Auto**-Taste betreten Sie die
-  Gruppe, mit **Leave Auto** kehren Sie zu Ihren normalen Seiten zurück. Im Auto-Reiter können Sie ein
-  Programm hinzufügen (mit einer Steuerungs-Vorlage vorbefüllt), das einer Seite zugeordnete Programm
-  ändern (mit einer **Detect application**-Schaltfläche, die fünf Sekunden wartet, damit Sie zuvor das
-  Zielfenster fokussieren können), die Tasten jeder Seite bearbeiten und ein **Overlay** festlegen —
-  eine Ebene, deren Tasten über *allen* Auto-Seiten liegen, ideal für eine gemeinsame „Leave Auto“-
-  oder Medienzeile. Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit `kdotool`);
-  Compositoren, die das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland), lassen die
-  Funktion einfach inaktiv.
+  automatisch folgt. Er ist sofort einsatzbereit: beim ersten Start wird er **mit je einer Seite pro
+  Steuerungs-Vorlage vorbefüllt, jeweils an deren Programm gebunden** (Firefox, Vivaldi, Thunar, GIMP,
+  …). Jede Auto-Seite wird angezeigt, sobald ihr Programm den Fokus erhält — allerdings nur, solange
+  sich das Deck *in* der Auto-Gruppe befindet, sodass es Ihrem Fokus nur dann folgt, wenn Sie es
+  möchten. Mit einer **Go to Auto**-Taste betreten Sie die Gruppe, mit **Leave Auto** kehren Sie zu
+  Ihren normalen Seiten zurück (die Tasten **◀ Prev** / **Next ▶** bleiben auf den normalen Seiten und
+  wechseln nie in die Auto-Seiten). Im Auto-Reiter können Sie ein Programm hinzufügen (mit einer
+  Steuerungs-Vorlage vorbefüllt), das einer Seite zugeordnete Programm ändern (mit einer **Detect
+  application**-Schaltfläche, die fünf Sekunden wartet, damit Sie zuvor das Zielfenster fokussieren
+  können), die Tasten jeder Seite direkt bearbeiten und ein **Overlay** festlegen — eine Ebene, deren
+  Tasten über *allen* Auto-Seiten liegen, ideal für eine gemeinsame „Leave Auto“- oder Medienzeile.
+  Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit `kdotool`); Compositoren, die
+  das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland), lassen die Funktion einfach inaktiv.
 * **Designs** — wählen Sie unter **View** ein Basis-Design: das **Default**-Design (Plattformlook),
   ein nostalgisches **Windows-XP**-Design (Luna) oder ein elegantes **Modern**-Design mit flachen,
   abgerundeten Bedienelementen und einem Indigo-Akzent (die Akzentfarbe ist über **View → Modern

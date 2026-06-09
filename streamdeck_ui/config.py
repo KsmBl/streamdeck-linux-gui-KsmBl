@@ -162,6 +162,7 @@ def _to_deck_states(state: dict) -> Dict[str, DeckState]:
             focus_pages={str(app): int(page) for app, page in deck_state.get("focus_pages", {}).items()},
             auto_pages=[int(page) for page in deck_state.get("auto_pages", [])],
             overlay_page=(None if deck_state.get("overlay_page") is None else int(deck_state["overlay_page"])),
+            auto_pages_seeded=bool(deck_state.get("auto_pages_seeded", False)),
         )
         for deck_id, deck_state in state.items()
     }
@@ -264,6 +265,7 @@ def _to_deck_config(state: Dict[str, DeckState]) -> dict:
             "focus_pages": deck_state.focus_pages,
             "auto_pages": deck_state.auto_pages,
             "overlay_page": deck_state.overlay_page,
+            "auto_pages_seeded": deck_state.auto_pages_seeded,
         }
         for deck_id, deck_state in state.items()
     }

@@ -35,20 +35,22 @@ credit for the original work goes to its authors and contributors.
   Auto** buttons turn a key into one that enters or leaves the Auto group (see below).
 * **Application control presets** — a **Controls…** button above the pages fills the current page in
   one click with a ready-made control surface for an application: **Firefox**, **Vivaldi**, **Thunar**,
-  **Vim** or a **media player**. Each preset lays out labelled, icon-bearing keys (New Tab, Back,
+  **Vim**, **GIMP** or a **media player**. Each preset lays out labelled, icon-bearing keys (New Tab, Back,
   Reload, Save, …) that drive the app through its keyboard shortcuts (or the global media keys); the
   matching Font Awesome icons are applied automatically (the font is bundled). Application shortcuts
   act on whichever window is focused, so pair a preset with an **Auto page** to switch to it
   automatically.
 * **Auto pages** — an **Auto** tab collects a set of per-application pages that the deck follows
-  automatically. Each auto page is bound to an application and is shown the moment that app is
-  focused — but only while the deck is *in* the Auto group, so the deck follows your focus only when
-  you want it to. Use a **Go to Auto** key to enter the group and a **Leave Auto** key to return to
-  your normal pages. From the Auto tab you can add an application (seeded with a control preset),
-  change which application a page follows (with a **Detect application** button that waits five
-  seconds so you can focus the target window first), edit each page's buttons, and define an
-  **overlay** — a layer whose keys are drawn on top of *every* auto page, perfect for a shared
-  "Leave Auto" or media row. Detection works on X11, Sway and Hyprland (and KDE with `kdotool`);
+  automatically. It comes ready to use: on first run it is **pre-populated with one page per control
+  preset, each bound to its application** (Firefox, Vivaldi, Thunar, GIMP, …). Each auto page is shown
+  the moment its app is focused — but only while the deck is *in* the Auto group, so the deck follows
+  your focus only when you want it to. Use a **Go to Auto** key to enter the group and a **Leave Auto**
+  key to return to your normal pages (the **◀ Prev** / **Next ▶** page keys stay on your normal pages
+  and never wander into the auto pages). From the Auto tab you can add an application (seeded with a
+  control preset), change which application a page follows (with a **Detect application** button that
+  waits five seconds so you can focus the target window first), edit each page's buttons in place, and
+  define an **overlay** — a layer whose keys are drawn on top of *every* auto page, perfect for a
+  shared "Leave Auto" or media row. Detection works on X11, Sway and Hyprland (and KDE with `kdotool`);
   compositors that don't expose the focused window (e.g. GNOME Wayland) simply leave it inactive.
 * **Themes** — pick a base look under **View**: the **Default** (platform) theme, a nostalgic
   **Windows XP** (Luna) theme, or a sleek **Modern** theme with flat rounded controls and an indigo

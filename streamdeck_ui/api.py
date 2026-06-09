@@ -779,6 +779,23 @@ class StreamDeckServer:
         self._save_state()
         return page
 
+    def is_auto_seeded(self, serial_number: str) -> bool:
+        """True once the default per-application auto pages have been created."""
+        return self.state[serial_number].auto_pages_seeded
+
+    def seed_default_auto_pages(self, serial_number: str) -> None:
+        """Creates one Auto page per built-in control preset, bound to its
+        application and seeded with its controls. Runs once per deck (guarded by
+        ``auto_pages_seeded``) so the defaults are not recreated after editing."""
+        from streamdeck_ui.modules.control_presets import CONTROL_PRESETS
+
+        if self.state[serial_number].auto_pages_seeded:
+            return
+        for preset in CONTROL_PRESETS:
+            self.add_auto_page(serial_number, preset.app, preset)
+        self.state[serial_number].auto_pages_seeded = True
+        self._save_state()
+
     def remove_auto_page(self, serial_number: str, page: int) -> None:
         """Removes a page from the Auto group and deletes it."""
         if page in self.state[serial_number].auto_pages:

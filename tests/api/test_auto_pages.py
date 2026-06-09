@@ -57,6 +57,23 @@ def test_resolve_overlay_overrides_nonempty_button_on_auto_page(api_server):
     assert api_server.resolve_overlay(STREAMDECK_SERIAL, auto, 1) == (auto, 1)
 
 
+def test_seed_default_auto_pages(api_server):
+    from streamdeck_ui.modules.control_presets import CONTROL_PRESETS
+
+    api_server.state[STREAMDECK_SERIAL].auto_pages_seeded = False
+    api_server.seed_default_auto_pages(STREAMDECK_SERIAL)
+
+    assert api_server.is_auto_seeded(STREAMDECK_SERIAL)
+    assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS)
+    # Presets with an application are bound to it.
+    apps = set(api_server.get_focus_pages(STREAMDECK_SERIAL).keys())
+    assert {"firefox", "vivaldi", "thunar", "gimp"} <= apps
+
+    # Seeding is idempotent — running again creates nothing new.
+    api_server.seed_default_auto_pages(STREAMDECK_SERIAL)
+    assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS)
+
+
 def test_resolve_overlay_passthrough_on_normal_page(api_server):
     overlay = api_server.add_new_page(STREAMDECK_SERIAL)
     api_server.set_overlay_page(STREAMDECK_SERIAL, overlay)

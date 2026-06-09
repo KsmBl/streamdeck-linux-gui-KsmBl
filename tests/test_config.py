@@ -77,6 +77,7 @@ TEST_CONFIG_STATE = {
         "focus_pages": {},
         "auto_pages": [],
         "overlay_page": None,
+        "auto_pages_seeded": False,
     }
 }
 TEST_CONFIG_STATE_V1 = {

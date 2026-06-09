@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSizePolicy,
+    QStackedWidget,
     QSystemTrayIcon,
     QToolButton,
     QVBoxLayout,
@@ -143,9 +144,6 @@ last_manual_page: Dict[str, int] = {}
 
 _focus_switching: bool = False
 "True while a page change is driven by the focus watcher (so it is not recorded as a manual selection)"
-
-_revealed_pages: Dict[str, List[int]] = {}
-"Auto/overlay pages temporarily shown as editable tabs (per deck) while editing them from the Auto tab"
 
 BUTTON_STYLE = """
     QToolButton {
@@ -379,10 +377,17 @@ def _resolve_switch_page_target(deck_id: str, current_page: int, switch_page: in
         return None
 
     if switch_page in (SWITCH_PAGE_NEXT, SWITCH_PAGE_PREVIOUS):
-        if current_page not in pages:
+        # Relative paging only walks the normal pages; auto pages and the overlay
+        # are reached through the Auto group, not Prev/Next.
+        auto_pages = api.get_auto_pages(deck_id)
+        overlay_page = api.get_overlay_page(deck_id)
+        normal = [page for page in pages if page not in auto_pages and page != overlay_page]
+        if not normal:
             return None
+        if current_page not in normal:
+            return normal[0]
         step = 1 if switch_page == SWITCH_PAGE_NEXT else -1
-        return pages[(pages.index(current_page) + step) % len(pages)]
+        return normal[(normal.index(current_page) + step) % len(normal)]
 
     if switch_page == SWITCH_PAGE_AUTO:
         return _auto_entry_page(deck_id)
@@ -426,6 +431,10 @@ def _page() -> Optional[int]:
     page = main_window.ui.pages.widget(tab_index)
     if page is None:
         return None
+    if page.property("auto_tab"):
+        # The Auto tab edits an auto/overlay page in place; ``editing_page`` is
+        # the page being edited, or None while its list is shown.
+        return getattr(page, "editing_page", None)
     return page.property("page_id")
 
 
@@ -465,6 +474,13 @@ def handle_change_page() -> None:
     # then follows the focused application.
     current_tab = main_window.ui.pages.currentWidget()
     if deck_id is not None and current_tab is not None and current_tab.property("auto_tab"):
+        # Returning to the Auto tab always shows its list (not a stale editor).
+        current_tab.editing_page = None
+        stack = getattr(current_tab, "auto_stack", None)
+        panel = getattr(current_tab, "auto_panel", None)
+        if stack is not None and panel is not None:
+            stack.setCurrentWidget(panel)
+            panel.refresh()
         # When the Auto tab is selected by the focus watcher the page is already
         # set; only a manual selection should pick the auto entry page.
         if not _focus_switching:
@@ -1846,6 +1862,12 @@ def build_device(ui, _device_index=None) -> None:
         if deck_id is None:
             return
 
+        # On first use, seed the Auto group with one page per control preset,
+        # bound to its application (done once per deck).
+        if not api.is_auto_seeded(deck_id):
+            api.seed_default_auto_pages(deck_id)
+            update_focus_watcher(ui)
+
         # clear the pages
         if ui.pages.count() > 0:
             ui.pages.clear()
@@ -1855,25 +1877,18 @@ def build_device(ui, _device_index=None) -> None:
 
         auto_pages = api.get_auto_pages(deck_id)
         overlay_page = api.get_overlay_page(deck_id)
-        revealed = _revealed_pages.get(deck_id, [])
 
-        # Add the normal pages. Auto pages and the overlay live inside the Auto
-        # tab and are only shown in the strip while being edited (revealed).
+        # Add the normal pages only. Auto pages and the overlay live inside the
+        # Auto tab and are edited in place there (no separate tab in the strip).
         for page_id in api.get_pages(deck_id):
-            hidden = page_id in auto_pages or page_id == overlay_page
-            if hidden and page_id not in revealed:
+            if page_id in auto_pages or page_id == overlay_page:
                 continue
             page = QWidget()
             page.setLayout(QGridLayout())
             page.setProperty("deck_id", deck_id)
             page.setProperty("page_id", page_id)
             page.setStyleSheet(style)
-            if page_id == overlay_page:
-                label = "Overlay"
-            elif page_id in auto_pages:
-                label = f"{api.get_focus_app_for_page(deck_id, page_id) or 'auto'} (auto)"
-            else:
-                label = _build_tab_label("Page", page_id)
+            label = _build_tab_label("Page", page_id)
             tab_index = ui.pages.addTab(page, label)
             page_tab = ui.pages.widget(tab_index)
             build_buttons(ui, page_tab)
@@ -1881,17 +1896,10 @@ def build_device(ui, _device_index=None) -> None:
                 active_tab_index = tab_index
 
         # Append the synthetic Auto tab (a manager for the auto pages + overlay).
-        auto_tab = QWidget()
-        auto_tab.setProperty("deck_id", deck_id)
-        auto_tab.setProperty("auto_tab", True)
-        auto_layout = QVBoxLayout(auto_tab)
-        auto_layout.setContentsMargins(0, 0, 0, 0)
-        auto_layout.addWidget(AutoPagePanel(auto_tab, ui, deck_id))
-        auto_tab_index = ui.pages.addTab(auto_tab, "Auto")
+        auto_tab_index = ui.pages.addTab(_build_auto_tab(ui, deck_id), "Auto")
 
-        # If the deck is currently on an (unrevealed) auto page, the Auto tab is
-        # the one that represents it.
-        if current_page in auto_pages and current_page not in revealed:
+        # If the deck is currently on an auto page, the Auto tab represents it.
+        if current_page in auto_pages or current_page == overlay_page:
             active_tab_index = auto_tab_index
 
         # Only the normal pages (everything but the Auto tab) count towards the
@@ -2438,25 +2446,70 @@ class AppBindingDialog(QDialog):
         return self.preset.currentData() if self.preset is not None else None
 
 
+def _build_auto_tab(ui, deck_id: str) -> QWidget:
+    """Builds the synthetic Auto tab: a stacked widget whose first page is the
+    AutoPagePanel (the list of auto pages + overlay) and whose second page is an
+    in-place button editor, so editing an auto page never adds a tab to the strip."""
+    auto_tab = QWidget()
+    auto_tab.setProperty("deck_id", deck_id)
+    auto_tab.setProperty("auto_tab", True)
+    auto_tab.editing_page = None  # type: ignore[attr-defined]
+
+    outer = QVBoxLayout(auto_tab)
+    outer.setContentsMargins(0, 0, 0, 0)
+    stack = QStackedWidget(auto_tab)
+    outer.addWidget(stack)
+
+    # The editor: a back bar plus a button grid the existing editing UI fills in.
+    editor = QWidget()
+    editor_layout = QVBoxLayout(editor)
+    editor_layout.setContentsMargins(0, 0, 0, 0)
+    top = QHBoxLayout()
+    back = QPushButton("← Back to Auto list", editor)
+    label = QLabel("", editor)
+    top.addWidget(back)
+    top.addWidget(label, 1)
+    editor_layout.addLayout(top)
+    grid = QWidget(editor)
+    grid.setLayout(QGridLayout())
+    grid.setProperty("deck_id", deck_id)
+    grid.setStyleSheet(DEVICE_PAGE_STYLE)
+    editor_layout.addWidget(grid, 1)
+
+    panel = AutoPagePanel(auto_tab, ui, deck_id, stack, editor, grid, label, back)
+    stack.addWidget(panel)
+    stack.addWidget(editor)
+    stack.setCurrentWidget(panel)
+
+    auto_tab.auto_stack = stack  # type: ignore[attr-defined]
+    auto_tab.auto_panel = panel  # type: ignore[attr-defined]
+    return auto_tab
+
+
 class AutoPagePanel(QWidget):
     """The contents of the Auto tab: a manager for the per-application auto pages
-    and the shared overlay drawn on top of them."""
+    and the shared overlay drawn on top of them. Editing a page happens in place
+    (in the Auto tab's stacked editor), so no extra tab appears in the strip."""
 
-    def __init__(self, parent, ui, deck_id: str):
-        super().__init__(parent)
+    def __init__(self, auto_tab, ui, deck_id: str, stack, editor, grid, label, back):
+        super().__init__(auto_tab)
         self._ui = ui
         self._deck_id = deck_id
+        self._auto_tab = auto_tab
+        self._stack = stack
+        self._editor = editor
+        self._grid = grid
+        self._label = label
 
         layout = QVBoxLayout(self)
-        layout.addWidget(
-            QLabel(
-                "Auto pages follow the focused application while the deck is in the Auto group. "
-                "Add a page per application, then use a 'Go to Auto' key to enter and a 'Leave Auto' "
-                "key (handy on the overlay) to return.",
-                self,
-            )
+        intro = QLabel(
+            "Auto pages follow the focused application while the deck is in the Auto group. "
+            "Add a page per application, then use a 'Go to Auto' key to enter and a 'Leave Auto' "
+            "key (handy on the overlay) to return.",
+            self,
         )
-        layout.itemAt(0).widget().setWordWrap(True)
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
 
         self.list = QListWidget(self)
         layout.addWidget(self.list, 1)
@@ -2484,6 +2537,7 @@ class AutoPagePanel(QWidget):
         self.remove_button.clicked.connect(self._remove)
         self.edit_overlay_button.clicked.connect(self._edit_overlay)
         self.remove_overlay_button.clicked.connect(self._remove_overlay)
+        back.clicked.connect(self._leave_editor)
         self.list.itemSelectionChanged.connect(self._update_enabled)
         self.list.itemDoubleClicked.connect(lambda _item: self._edit())
 
@@ -2511,6 +2565,30 @@ class AutoPagePanel(QWidget):
     def _candidates(self) -> List[str]:
         return sorted(set(list_open_apps()) | set(api.get_focus_pages(self._deck_id).keys()))
 
+    def _enter_editor(self, page: int, title: str) -> None:
+        """Shows the in-place button editor for an auto/overlay page."""
+        self._auto_tab.editing_page = page
+        self._label.setText(title)
+        build_buttons(self._ui, self._grid)
+        self._stack.setCurrentWidget(self._editor)
+        api.set_page(self._deck_id, page)
+        api.reset_dimmer(self._deck_id)
+        redraw_buttons()
+        build_button_state_pages()
+
+    def _leave_editor(self) -> None:
+        """Returns from the editor to the auto-page list."""
+        global selected_button
+        self._auto_tab.editing_page = None
+        selected_button = None
+        self._stack.setCurrentWidget(self)
+        entry = _auto_entry_page(self._deck_id)
+        if entry is not None:
+            api.set_page(self._deck_id, entry)
+            api.reset_dimmer(self._deck_id)
+        self.refresh()
+        build_button_state_pages()
+
     def _add(self) -> None:
         dialog = AppBindingDialog(self, "Add auto page", None, self._candidates(), with_preset=True)
         if not dialog.exec():
@@ -2536,8 +2614,10 @@ class AutoPagePanel(QWidget):
 
     def _edit(self) -> None:
         page = self._selected_page()
-        if page is not None:
-            QTimer.singleShot(0, partial(_reveal_page, self._ui, self._deck_id, page))
+        if page is None:
+            return
+        app = api.get_focus_app_for_page(self._deck_id, page) or "(no application)"
+        self._enter_editor(page, f"Editing auto page — {app}")
 
     def _remove(self) -> None:
         page = self._selected_page()
@@ -2551,8 +2631,6 @@ class AutoPagePanel(QWidget):
         confirm.setIcon(QMessageBox.Icon.Question)
         if confirm.exec() != QMessageBox.StandardButton.Yes:
             return
-        if self._deck_id in _revealed_pages and page in _revealed_pages[self._deck_id]:
-            _revealed_pages[self._deck_id].remove(page)
         api.remove_auto_page(self._deck_id, page)
         self.refresh()
         update_focus_watcher(self._ui)
@@ -2562,7 +2640,7 @@ class AutoPagePanel(QWidget):
         if overlay is None:
             overlay = api.add_new_page(self._deck_id)
             api.set_overlay_page(self._deck_id, overlay)
-        QTimer.singleShot(0, partial(_reveal_page, self._ui, self._deck_id, overlay))
+        self._enter_editor(overlay, "Editing overlay (drawn over every auto page)")
 
     def _remove_overlay(self) -> None:
         overlay = api.get_overlay_page(self._deck_id)
@@ -2576,24 +2654,9 @@ class AutoPagePanel(QWidget):
         confirm.setIcon(QMessageBox.Icon.Question)
         if confirm.exec() != QMessageBox.StandardButton.Yes:
             return
-        if self._deck_id in _revealed_pages and overlay in _revealed_pages[self._deck_id]:
-            _revealed_pages[self._deck_id].remove(overlay)
         api.clear_overlay_page(self._deck_id)
         api.remove_page(self._deck_id, overlay)
         self.refresh()
-
-
-def _reveal_page(ui, deck_id: str, page: int) -> None:
-    """Temporarily shows an auto/overlay page as an editable tab and selects it,
-    so the existing button-editing UI can be reused to lay it out."""
-    revealed = _revealed_pages.setdefault(deck_id, [])
-    if page not in revealed:
-        revealed.append(page)
-    build_device(ui)
-    for tab in range(ui.pages.count()):
-        if ui.pages.widget(tab).property("page_id") == page:
-            ui.pages.setCurrentIndex(tab)
-            break
 
 
 def build_control_presets_menu(ui) -> None:

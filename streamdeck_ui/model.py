@@ -71,6 +71,9 @@ class DeckState:
     overlay_page: Optional[int] = None
     """Page id whose non-empty buttons are drawn on top of every auto page (a
     shared overlay layer). ``None`` when no overlay is configured."""
+    auto_pages_seeded: bool = False
+    """True once the default per-application auto pages have been created, so the
+    defaults are seeded only once and not recreated after the user edits them."""
 
 
 @dataclass

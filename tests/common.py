@@ -52,12 +52,15 @@ def create_test_api_server() -> TestableStreamDeckServer:
                 1: func_gen_page(),
                 2: func_gen_page(),
             },
+            # Tests start without the default auto pages so page counts are stable.
+            auto_pages_seeded=True,
         ),
         STREAMDECK_SERIAL: DeckState(
             buttons={
                 0: func_gen_page(),
                 1: func_gen_page(),
             },
+            auto_pages_seeded=True,
         ),
     }
     # we don't want to save the state to disk
