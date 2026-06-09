@@ -87,7 +87,12 @@ class DisplayGrid:
 
     def remove_page(self, page: int):
         with self.lock:
-            del self.pages[page]
+            if page in self.pages:
+                del self.pages[page]
+            # If the page being shown was removed, fall back to a surviving page
+            # so the render loop never indexes a deleted page.
+            if self.current_page == page:
+                self.current_page = next(iter(self.pages), 0)
 
     def replace(self, page: int, button: int, filters: List[Filter]):
         with self.lock:
@@ -136,7 +141,15 @@ class DisplayGrid:
             current_time = time()
 
             with self.lock:
-                page = self.pages[self.current_page]
+                page = self.pages.get(self.current_page)
+
+            if page is None:
+                # The current page was removed (e.g. resetting the auto pages);
+                # keep any synchronize() waiters moving and retry next cycle.
+                self.sync.set()
+                self.sync.clear()
+                sleep(self.time_per_frame)
+                continue
 
             force_update = False
 

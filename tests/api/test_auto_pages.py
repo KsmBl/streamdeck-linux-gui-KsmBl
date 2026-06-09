@@ -79,12 +79,16 @@ def test_reset_auto_pages_restores_defaults(api_server):
 
     # Start from an edited Auto group: an extra custom page and an overlay.
     api_server.state[STREAMDECK_SERIAL].auto_pages_seeded = True
-    api_server.add_auto_page(STREAMDECK_SERIAL, "custom-app")
+    custom = api_server.add_auto_page(STREAMDECK_SERIAL, "custom-app")
     overlay = api_server.add_new_page(STREAMDECK_SERIAL)
     api_server.set_overlay_page(STREAMDECK_SERIAL, overlay)
+    # Sit on a page that the reset will delete (this used to crash the display).
+    api_server.set_page(STREAMDECK_SERIAL, custom)
 
     api_server.reset_auto_pages(STREAMDECK_SERIAL)
 
+    # The deck ends up on a page that still exists.
+    assert api_server.get_page(STREAMDECK_SERIAL) in api_server.get_pages(STREAMDECK_SERIAL)
     # The overlay is gone and the defaults are back.
     assert api_server.get_overlay_page(STREAMDECK_SERIAL) is None
     assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS)

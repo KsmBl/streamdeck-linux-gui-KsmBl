@@ -870,16 +870,23 @@ class StreamDeckServer:
         """Deletes every auto page and the overlay, then re-creates the default
         per-application auto pages from scratch (a factory reset of the Auto
         group)."""
+        # Leave any auto/overlay page first so the live display is never showing
+        # a page that is about to be deleted.
+        auto_pages = self.get_auto_pages(serial_number)
+        overlay = self.get_overlay_page(serial_number)
+        survivors = [p for p in self.get_pages(serial_number) if p not in auto_pages and p != overlay]
+        if survivors and self.get_page(serial_number) not in survivors:
+            self.set_page(serial_number, survivors[0])
+
         with self.batch():
-            for page in self.get_auto_pages(serial_number):
+            for page in auto_pages:
                 self.remove_auto_page(serial_number, page)
-            overlay = self.get_overlay_page(serial_number)
             if overlay is not None:
                 self.clear_overlay_page(serial_number)
                 self.remove_page(serial_number, overlay)
             self.state[serial_number].auto_pages_seeded = False
             self.seed_default_auto_pages(serial_number)
-        # The deck may have been sitting on a now-deleted page; land on a valid one.
+        # The deck may still have been on a now-deleted page; land on a valid one.
         pages = self.get_pages(serial_number)
         if pages and self.get_page(serial_number) not in pages:
             self.set_page(serial_number, pages[0])
