@@ -210,8 +210,131 @@ _VLC = ControlPreset(
     app="vlc",
 )
 
+_XFCE_TERMINAL = ControlPreset(
+    "Xfce Terminal",
+    [
+        ControlAction("New\nTab", "ctrl+shift+t", icon="plus"),
+        ControlAction("New\nWindow", "ctrl+shift+n", icon="window-restore"),
+        ControlAction("Close\nTab", "ctrl+shift+w", icon="xmark"),
+        ControlAction("Copy", "ctrl+shift+c", icon="copy"),
+        ControlAction("Paste", "ctrl+shift+v", icon="paste"),
+        ControlAction("Prev\nTab", "ctrl+pageup", icon="chevron-left"),
+        ControlAction("Next\nTab", "ctrl+pagedown", icon="chevron-right"),
+        ControlAction("Find", "ctrl+shift+f", icon="magnifying-glass"),
+        ControlAction("Zoom\nIn", "ctrl+plus", icon="magnifying-glass-plus"),
+        ControlAction("Full\nScreen", "f11", icon="expand"),
+    ],
+    app="xfce4-terminal",
+)
+
+_KONSOLE = ControlPreset(
+    "Konsole",
+    [
+        ControlAction("New\nTab", "ctrl+shift+t", icon="plus"),
+        ControlAction("New\nWindow", "ctrl+shift+n", icon="window-restore"),
+        ControlAction("Close\nTab", "ctrl+shift+w", icon="xmark"),
+        ControlAction("Copy", "ctrl+shift+c", icon="copy"),
+        ControlAction("Paste", "ctrl+shift+v", icon="paste"),
+        ControlAction("Prev\nTab", "shift+left", icon="chevron-left"),
+        ControlAction("Next\nTab", "shift+right", icon="chevron-right"),
+        ControlAction("Find", "ctrl+shift+f", icon="magnifying-glass"),
+        ControlAction("Clear", "ctrl+shift+k", icon="eraser"),
+        ControlAction("Full\nScreen", "f11", icon="expand"),
+    ],
+    app="konsole",
+)
+
+_DOLPHIN = ControlPreset(
+    "Dolphin (files)",
+    [
+        ControlAction("New\nTab", "ctrl+t", icon="plus"),
+        ControlAction("New\nWindow", "ctrl+n", icon="window-restore"),
+        ControlAction("Close\nTab", "ctrl+w", icon="xmark"),
+        ControlAction("Back", "alt+left", icon="arrow-left"),
+        ControlAction("Fwd", "alt+right", icon="arrow-right"),
+        ControlAction("Up", "alt+up", icon="arrow-up"),
+        ControlAction("Home", "alt+home", icon="house"),
+        ControlAction("Reload", "f5", icon="arrows-rotate"),
+        ControlAction("New\nFolder", "f10", icon="folder-plus"),
+        ControlAction("Rename", "f2", icon="pen"),
+        ControlAction("Delete", "delete", icon="trash"),
+        ControlAction("Find", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("Select\nAll", "ctrl+a", icon="check-double"),
+        ControlAction("Hidden\nFiles", "ctrl+h", icon="eye"),
+    ],
+    app="dolphin",
+)
+
+# TETR.IO desktop: the default in-game controls, driven from the deck.
+_TETRIO = ControlPreset(
+    "TETR.IO",
+    [
+        ControlAction("Left", "left", icon="arrow-left"),
+        ControlAction("Right", "right", icon="arrow-right"),
+        ControlAction("Soft\nDrop", "down", icon="arrow-down"),
+        ControlAction("Hard\nDrop", "space", icon="angles-down"),
+        ControlAction("Rotate\nCW", "up", icon="rotate-right"),
+        ControlAction("Rotate\nCCW", "z", icon="rotate-left"),
+        ControlAction("Rotate\n180", "a", icon="arrows-rotate"),
+        ControlAction("Hold", "c", icon="box-archive"),
+        ControlAction("Full\nScreen", "f11", icon="expand"),
+    ],
+    app="tetrio-desktop",
+)
+
+_THUNDERBIRD = ControlPreset(
+    "Thunderbird",
+    [
+        ControlAction("Write", "ctrl+n", icon="pen-to-square"),
+        ControlAction("Reply", "ctrl+r", icon="reply"),
+        ControlAction("Reply\nAll", "ctrl+shift+r", icon="reply-all"),
+        ControlAction("Forward", "ctrl+l", icon="share"),
+        ControlAction("Send", "ctrl+enter", icon="paper-plane"),
+        ControlAction("Get\nMail", "f5", icon="arrows-rotate"),
+        ControlAction("Archive", "a", icon="box-archive"),
+        ControlAction("Delete", "delete", icon="trash"),
+        ControlAction("Junk", "j", icon="ban"),
+        ControlAction("Mark\nRead", "m", icon="envelope"),
+        ControlAction("Contacts", "ctrl+shift+b", icon="users"),
+        ControlAction("Search", "ctrl+k", icon="magnifying-glass"),
+    ],
+    app="thunderbird",
+)
+
+_GITTYUP = ControlPreset(
+    "Gittyup",
+    [
+        ControlAction("Refresh", "ctrl+r", icon="arrows-rotate"),
+        ControlAction("Commit", "ctrl+enter", icon="check"),
+        ControlAction("Stage\nAll", "ctrl+shift+a", icon="check-double"),
+        ControlAction("Push", "ctrl+shift+p", icon="cloud-arrow-up"),
+        ControlAction("Fetch", "ctrl+shift+f", icon="cloud-arrow-down"),
+        ControlAction("Pull", "ctrl+shift+l", icon="download"),
+        ControlAction("New\nBranch", "ctrl+shift+b", icon="code-branch"),
+        ControlAction("Find", "ctrl+f", icon="magnifying-glass"),
+        ControlAction("Undo", "ctrl+z", icon="rotate-left"),
+        ControlAction("Redo", "ctrl+shift+z", icon="rotate-right"),
+    ],
+    app="gittyup",
+)
+
 # Order shown in the menu.
-CONTROL_PRESETS: List[ControlPreset] = [_FIREFOX, _VIVALDI, _THUNAR, _VIM, _MEDIA, _GIMP, _DISCORD, _VLC]
+CONTROL_PRESETS: List[ControlPreset] = [
+    _FIREFOX,
+    _VIVALDI,
+    _THUNAR,
+    _DOLPHIN,
+    _XFCE_TERMINAL,
+    _KONSOLE,
+    _VIM,
+    _GITTYUP,
+    _GIMP,
+    _DISCORD,
+    _THUNDERBIRD,
+    _VLC,
+    _TETRIO,
+    _MEDIA,
+]
 
 
 def preset_names() -> List[Tuple[str, ControlPreset]]:

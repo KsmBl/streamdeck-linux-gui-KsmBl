@@ -365,6 +365,21 @@ PRESET_ICON_CODEPOINTS: Dict[str, int] = {
     "camera": 0xF332,
     "repeat": 0x1F501,
     "shuffle": 0xF074,
+    "arrow-down": 0xF063,
+    "magnifying-glass-plus": 0xF00E,
+    "box-archive": 0xF187,
+    "pen-to-square": 0xF044,
+    "reply": 0xF3E5,
+    "reply-all": 0xF122,
+    "share": 0xF064,
+    "paper-plane": 0xF1D8,
+    "ban": 0xF05E,
+    "envelope": 0xF0E0,
+    "users": 0xF0C0,
+    "check": 0xF00C,
+    "cloud-arrow-up": 0xF0EE,
+    "cloud-arrow-down": 0xF0ED,
+    "code-branch": 0xF126,
 }
 
 # Reverse lookups so enumerated glyphs can reuse the curated display names where

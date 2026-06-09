@@ -39,9 +39,10 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   vorgefertigtes Pfeil-Icon; mit **Go to Auto** / **Leave Auto** wird eine Taste zum Betreten bzw.
   Verlassen der Auto-Gruppe (siehe unten).
 * **Steuerungs-Vorlagen für Anwendungen** — eine Schaltfläche **Controls…** über den Seiten füllt die
-  aktuelle Seite mit einem Klick mit einer fertigen Steuerflächen-Vorlage für ein Programm:
-  **Firefox**, **Vivaldi**, **Thunar**, **Vim**, **GIMP**, **Discord**, **VLC** oder einen
-  **Medienplayer**. Jede Vorlage legt
+  aktuelle Seite mit einem Klick mit einer fertigen Steuerflächen-Vorlage für ein Programm: Browser
+  (**Firefox**, **Vivaldi**), Dateimanager (**Thunar**, **Dolphin**), Terminals (**Xfce Terminal**,
+  **Konsole**), **Vim**, **Gittyup**, **GIMP**, **Discord**, **Thunderbird**, **VLC**, **TETR.IO**
+  oder einen generischen **Medienplayer**. Jede Vorlage legt
   beschriftete Tasten mit Icon an (Neuer Tab, Zurück, Neu laden, Speichern, …), die das Programm über
   seine Tastenkürzel (bzw. die globalen Medientasten) steuern; die passenden Font-Awesome-Icons werden
   automatisch gesetzt (die Schrift ist mitgeliefert). Programmkürzel wirken auf das jeweils fokussierte

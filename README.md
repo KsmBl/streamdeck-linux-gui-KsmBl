@@ -34,9 +34,10 @@ credit for the original work goes to its authors and contributors.
   relative page switch (with wrap-around) and apply a premade arrow icon; **Go to Auto** / **Leave
   Auto** buttons turn a key into one that enters or leaves the Auto group (see below).
 * **Application control presets** — a **Controls…** button above the pages fills the current page in
-  one click with a ready-made control surface for an application: **Firefox**, **Vivaldi**, **Thunar**,
-  **Vim**, **GIMP**, **Discord**, **VLC** or a **media player**. Each preset lays out labelled,
-  icon-bearing keys (New Tab, Back,
+  one click with a ready-made control surface for an application: browsers (**Firefox**, **Vivaldi**),
+  file managers (**Thunar**, **Dolphin**), terminals (**Xfce Terminal**, **Konsole**), **Vim**,
+  **Gittyup**, **GIMP**, **Discord**, **Thunderbird**, **VLC**, **TETR.IO** or a generic **media
+  player**. Each preset lays out labelled, icon-bearing keys (New Tab, Back,
   Reload, Save, …) that drive the app through its keyboard shortcuts (or the global media keys); the
   matching Font Awesome icons are applied automatically (the font is bundled). Application shortcuts
   act on whichever window is focused, so pair a preset with an **Auto page** to switch to it

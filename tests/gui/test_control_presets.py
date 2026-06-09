@@ -27,11 +27,17 @@ def test_controls_button_has_a_menu(qtbot, api_and_window):
         "Firefox",
         "Vivaldi",
         "Thunar (files)",
+        "Dolphin (files)",
+        "Xfce Terminal",
+        "Konsole",
         "Vim",
-        "Media player",
+        "Gittyup",
         "GIMP",
         "Discord",
+        "Thunderbird",
         "VLC",
+        "TETR.IO",
+        "Media player",
     ]
 
 
