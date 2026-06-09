@@ -124,14 +124,27 @@ _DETECTORS: List[Callable[[], Optional[str]]] = [
 ]
 
 
+def _safe(detector: Callable[[], Optional[str]]) -> Optional[str]:
+    try:
+        return detector()
+    except Exception:  # noqa: BLE001 - detection must never crash the watcher
+        return None
+
+
 def get_focused_app() -> Optional[str]:
     """Returns the focused application's identifier, or None if it cannot be
-    determined on this system."""
+    determined (or nothing is focused).
+
+    A Wayland compositor that can report the focused window is *authoritative*:
+    when it reports no focused window we must NOT fall through to the X11 helpers,
+    because under XWayland ``xprop``/``xdotool`` still report a stale active
+    window (e.g. on an empty Sway workspace they would return the last app)."""
+    if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") and shutil.which("hyprctl"):
+        return _safe(_from_hyprland)
+    if os.environ.get("SWAYSOCK") and shutil.which("swaymsg"):
+        return _safe(_from_sway)
     for detector in _DETECTORS:
-        try:
-            app = detector()
-        except Exception:  # noqa: BLE001 - detection must never crash the watcher
-            app = None
+        app = _safe(detector)
         if app:
             return app
     return None

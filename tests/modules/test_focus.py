@@ -48,22 +48,38 @@ def test_from_xprop_extracts_class():
         assert focus._from_xprop() == "firefox"
 
 
+def _no_wayland():
+    # Disable the Wayland-compositor fast paths so the _DETECTORS chain is used.
+    return patch.dict("os.environ", {"SWAYSOCK": "", "HYPRLAND_INSTANCE_SIGNATURE": ""}, clear=False)
+
+
 def test_get_focused_app_returns_first_match():
-    with patch.object(focus, "_DETECTORS", [lambda: None, lambda: "kitty", lambda: "ignored"]):
+    with _no_wayland(), patch.object(focus, "_DETECTORS", [lambda: None, lambda: "kitty", lambda: "ignored"]):
         assert focus.get_focused_app() == "kitty"
 
 
 def test_get_focused_app_none_when_unsupported():
-    with patch.object(focus, "_DETECTORS", [lambda: None, lambda: None]):
+    with _no_wayland(), patch.object(focus, "_DETECTORS", [lambda: None, lambda: None]):
         assert focus.get_focused_app() is None
         assert focus.focus_detection_available() is False
+
+
+def test_wayland_is_authoritative_when_nothing_focused():
+    # Sway reports no focused window (e.g. an empty workspace); get_focused_app
+    # must return None instead of falling through to a stale X11 active window.
+    with patch.dict("os.environ", {"SWAYSOCK": "/run/sway"}, clear=False), patch.object(
+        focus.shutil, "which", return_value="/usr/bin/swaymsg"
+    ), patch.object(focus, "_from_sway", return_value=None), patch.object(
+        focus, "_DETECTORS", [lambda: "stale-x11-window"]
+    ):
+        assert focus.get_focused_app() is None
 
 
 def test_detector_exceptions_are_swallowed():
     def boom():
         raise RuntimeError("nope")
 
-    with patch.object(focus, "_DETECTORS", [boom, lambda: "safe"]):
+    with _no_wayland(), patch.object(focus, "_DETECTORS", [boom, lambda: "safe"]):
         assert focus.get_focused_app() == "safe"
 
 
