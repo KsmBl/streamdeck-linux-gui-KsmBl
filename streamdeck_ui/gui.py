@@ -9,7 +9,7 @@ from subprocess import Popen  # nosec - Need to allow users to specify arbitrary
 from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 from importlib_metadata import PackageNotFoundError, version
-from PySide6.QtCore import QMimeData, QSettings, QSignalBlocker, QSize, Qt, QTimer, QUrl
+from PySide6.QtCore import QMimeData, QSettings, QSignalBlocker, QSize, Qt, QThread, QTimer, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -144,6 +144,9 @@ last_manual_page: Dict[str, int] = {}
 
 _focus_switching: bool = False
 "True while a page change is driven by the focus watcher (so it is not recorded as a manual selection)"
+
+_last_focused_app: Optional[str] = None
+"Most recent focused application reported by the watcher (read on hot paths to avoid a synchronous probe)"
 
 BUTTON_STYLE = """
     QToolButton {
@@ -406,13 +409,16 @@ def _resolve_switch_page_target(deck_id: str, current_page: int, switch_page: in
 
 def _auto_entry_page(deck_id: str) -> Optional[int]:
     """The auto page to show when entering the Auto group: the one bound to the
-    currently focused application, else the first auto page."""
+    currently focused application, else the first auto page.
+
+    The focused app is read from the background watcher's last value (updated by
+    handle_focus_changed) rather than probing synchronously, so entering the Auto
+    group from a key press never blocks the UI on a subprocess."""
     auto_pages = api.get_auto_pages(deck_id)
     if not auto_pages:
         return None
-    app = get_focused_app()
-    if app is not None:
-        bound = api.get_focus_pages(deck_id).get(app)
+    if _last_focused_app is not None:
+        bound = api.get_focus_pages(deck_id).get(_last_focused_app)
         if bound in auto_pages:
             return bound
     return auto_pages[0]
@@ -1242,17 +1248,43 @@ def show_application_picker(ui: Ui_ButtonForm) -> None:
 IconProvider = Union[List[Tuple[str, str]], Callable[[], List[Tuple[str, str]]]]
 
 
+class _IconBuildWorker(QThread):
+    """Builds one icon category off the GUI thread: it runs the (potentially
+    expensive) provider — which renders glyphs from a font — and precomputes the
+    drop-shadow image for each icon, so the GUI thread only has to create QIcons.
+    Emits ``built(category, [(name, original_path, shadow_path), ...])``."""
+
+    built = Signal(str, list)
+
+    def __init__(self, parent, category: str, provider: IconProvider):
+        super().__init__(parent)
+        self._category = category
+        self._provider = provider
+
+    def run(self) -> None:  # noqa: N802 - QThread entry point
+        try:
+            entries = list(self._provider()) if callable(self._provider) else list(self._provider)
+            result = [(name, path, add_drop_shadow(path)) for name, path in entries]
+        except Exception as error:  # noqa: BLE001 - a broken provider must not crash the UI
+            print(f"Could not build icon category '{self._category}': {error}")
+            result = []
+        self.built.emit(self._category, result)
+
+
 class SampleIconPicker(QDialog):
     """A searchable dialog of ready-made icons grouped by category, with an
-    optional colour tint. Categories may be supplied lazily as callables so that
-    expensive ones are only built when first viewed or searched."""
+    optional colour tint. Expensive categories are rendered on a background
+    thread so the dialog never freezes while building thousands of glyphs."""
 
     def __init__(self, parent, categories: Dict[str, IconProvider]):
         super().__init__(parent)
         self.setWindowTitle("Sample Icons")
         self.resize(520, 560)
         self._providers = categories
-        self._materialized: Dict[str, List[Tuple[str, str]]] = {}
+        # category -> [(display_name, original_path, shadow_path), ...]
+        self._materialized: Dict[str, List[Tuple[str, str, str]]] = {}
+        self._build_queue: List[str] = []
+        self._worker: Optional[_IconBuildWorker] = None
 
         layout = QVBoxLayout(self)
 
@@ -1307,15 +1339,34 @@ class SampleIconPicker(QDialog):
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 
-    def _materialize(self, category: str) -> List[Tuple[str, str]]:
-        if category not in self._materialized:
+    def _ensure_built(self, categories: List[str]) -> None:
+        """Makes categories available. Cheap (already-listed) categories are built
+        inline; expensive provider callables are queued for background rendering."""
+        for category in categories:
+            if category in self._materialized or category in self._build_queue:
+                continue
             provider = self._providers[category]
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            try:
-                self._materialized[category] = list(provider()) if callable(provider) else list(provider)
-            finally:
-                QApplication.restoreOverrideCursor()
-        return self._materialized[category]
+            if callable(provider):
+                self._build_queue.append(category)
+            else:
+                self._materialized[category] = [(name, path, add_drop_shadow(path)) for name, path in provider]
+        self._pump_queue()
+
+    def _pump_queue(self) -> None:
+        """Starts building the next queued category if none is in flight."""
+        if self._worker is not None or not self._build_queue:
+            return
+        category = self._build_queue.pop(0)
+        self._worker = _IconBuildWorker(self, category, self._providers[category])
+        self._worker.built.connect(self._on_built)
+        self._worker.start()
+
+    def _on_built(self, category: str, entries: list) -> None:
+        self._materialized[category] = entries
+        self._worker = None
+        self._pump_queue()
+        # Show the freshly built icons if they belong to the current view.
+        self._refresh()
 
     def _refresh(self) -> None:
         search = self.search.text().strip().lower()
@@ -1323,18 +1374,29 @@ class SampleIconPicker(QDialog):
         # Searching, or the "All categories" entry, spans every category.
         categories = list(self._providers) if (search or selected is None) else [selected]
 
+        self._ensure_built(categories)
+
         self.list.clear()
+        pending = False
         for category in categories:
-            for display_name, path in self._materialize(category):
+            if category not in self._materialized:
+                pending = True
+                continue
+            for display_name, original_path, shadow_path in self._materialized[category]:
                 if search and search not in display_name.lower():
                     continue
-                # Show a soft drop shadow behind the glyph so light icons stay
-                # visible on light backgrounds; the stored icon path is untouched.
-                item = QListWidgetItem(QIcon(add_drop_shadow(path)), display_name)
-                item.setData(Qt.ItemDataRole.UserRole, path)
+                # The drop-shadow image (built off-thread) keeps light icons
+                # visible on light backgrounds; the stored icon path is the original.
+                item = QListWidgetItem(QIcon(shadow_path), display_name)
+                item.setData(Qt.ItemDataRole.UserRole, original_path)
                 item.setToolTip(f"{category.replace('_', ' ').title()}: {display_name}")
                 self.list.addItem(item)
-        if self.list.count():
+
+        if pending and self.list.count() == 0:
+            placeholder = QListWidgetItem("Loading icons…")
+            placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
+            self.list.addItem(placeholder)
+        elif self.list.count():
             self.list.setCurrentRow(0)
         self._update_ok_enabled()
 
@@ -1357,6 +1419,16 @@ class SampleIconPicker(QDialog):
         """Returns the chosen tint colour as a hex string, or None to keep the
         icon unchanged."""
         return self._color.name() if self.recolor.isChecked() else None
+
+    def done(self, result: int) -> None:  # noqa: A003 - QDialog override
+        # Let any in-flight build finish before the dialog (the worker's parent)
+        # is torn down, so the QThread is never destroyed while running.
+        self._build_queue.clear()
+        if self._worker is not None:
+            self._worker.built.disconnect()
+            self._worker.wait()
+            self._worker = None
+        super().done(result)
 
 
 _MAX_RECENT_ICONS = 12
@@ -2198,6 +2270,8 @@ def handle_focus_changed(ui, app: str) -> None:
     the auto tab"): the deck follows the focused application between its auto
     pages, and stays put when the focused app has no auto page. Runs in the GUI
     thread (queued signal from the watcher)."""
+    global _last_focused_app
+    _last_focused_app = app
     for deck_id in list(api.decks_by_serial.keys()):
         try:
             auto_pages = api.get_auto_pages(deck_id)

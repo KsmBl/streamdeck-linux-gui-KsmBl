@@ -2,6 +2,7 @@
 
 import os
 import threading
+from contextlib import contextmanager
 from copy import deepcopy
 from functools import partial
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
@@ -100,6 +101,18 @@ class StreamDeckServer:
         self.streamdeck_keys = KeySignalEmitter()
         self.plugevents = StreamDeckSignalEmitter()
 
+        # Saving the whole config to disk on every edit froze the UI when many
+        # edits happened in quick succession (applying a preset, seeding the auto
+        # pages, dragging icons). Coalesce them: a save is deferred and a burst
+        # collapses to a single background write once activity settles.
+        self._save_lock = threading.Lock()
+        self._save_timer: Optional[threading.Timer] = None
+        self._save_delay = 0.4
+        # While suspended, per-button display refreshes are not synchronised one
+        # by one; a bulk operation synchronises once at the end (see ``batch``).
+        self._suspend_sync = False
+        self._pending_sync: set = set()
+
     def stop_dimmer(self, serial_number: str) -> None:
         """Stops the dimmer for the given Stream Deck
 
@@ -179,7 +192,59 @@ class StreamDeckServer:
         self._save_state()
 
     def _save_state(self):
+        """Schedules a save of the configuration. The write is deferred and a
+        burst of edits collapses into a single background write, so editing never
+        blocks the UI on disk I/O. Use ``flush_state`` to write immediately."""
+        with self._save_lock:
+            if self._save_timer is not None:
+                self._save_timer.cancel()
+            self._save_timer = threading.Timer(self._save_delay, self._write_state_now)
+            self._save_timer.daemon = True
+            self._save_timer.start()
+
+    def _write_state_now(self) -> None:
+        with self._save_lock:
+            self._save_timer = None
+        try:
+            self.export_config(STATE_FILE)
+        except Exception as error:  # noqa: BLE001 - never let the writer thread die
+            # A rare concurrent edit can disturb serialisation; retry shortly.
+            logger.warning(f"Deferred config save failed, retrying: {error}")
+            self._save_state()
+
+    def flush_state(self) -> None:
+        """Writes any pending configuration change immediately (e.g. on exit)."""
+        with self._save_lock:
+            if self._save_timer is None:
+                return
+            self._save_timer.cancel()
+            self._save_timer = None
         self.export_config(STATE_FILE)
+
+    def _sync(self, handler) -> None:
+        """Pushes pending display changes to the deck, or defers them while a
+        bulk operation is in progress (see ``batch``)."""
+        if self._suspend_sync:
+            self._pending_sync.add(handler)
+        else:
+            handler.synchronize()
+
+    @contextmanager
+    def batch(self):
+        """Suspends per-button display synchronisation for the duration of a bulk
+        operation, then synchronises each touched deck once at the end. Combined
+        with the deferred save this turns a preset apply or auto-page seeding from
+        hundreds of blocking writes/waits into a single one."""
+        previous = self._suspend_sync
+        self._suspend_sync = True
+        try:
+            yield
+        finally:
+            self._suspend_sync = previous
+            if not self._suspend_sync:
+                pending, self._pending_sync = self._pending_sync, set()
+                for handler in pending:
+                    handler.synchronize()
 
     def open_config(self, config_file: str):
         self.state = read_state_from_config(config_file)
@@ -188,6 +253,7 @@ class StreamDeckServer:
         self.stop()
         self.open_config(config_file)
         self._save_state()
+        self.flush_state()  # persist the imported config immediately
         self.start()
 
     def export_config(self, output_file: str) -> None:
@@ -260,7 +326,7 @@ class StreamDeckServer:
             serial_number, new_page_index, self.decks_by_serial[serial_number].key_count()
         )
         self.display_handlers[serial_number].initialize_page(new_page_index)
-        self.display_handlers[serial_number].synchronize()
+        self._sync(self.display_handlers[serial_number])
 
         return new_page_index
 
@@ -326,6 +392,8 @@ class StreamDeckServer:
         self.monitor.start()
 
     def stop(self):
+        # Persist any pending (deferred) configuration change before shutting down.
+        self.flush_state()
         self.monitor.stop()
 
     def get_deck_layout(self, serial_number: str) -> Tuple[int, int]:
@@ -386,7 +454,7 @@ class StreamDeckServer:
                 self._save_state()
                 self._update_button_filters(serial_number, page, button)
                 display_handler = self.display_handlers[serial_number]
-                display_handler.synchronize()
+                self._sync(display_handler)
 
     def get_button_switch_state(self, serial_number: str, page: int, button: int) -> int:
         """Returns the state switch set for the specified button. 0 implies no state switch."""
@@ -409,7 +477,7 @@ class StreamDeckServer:
         self._update_button_filters(serial_number, page, source_button)
         self._update_button_filters(serial_number, page, target_button)
         display_handler = self.display_handlers[serial_number]
-        display_handler.synchronize()
+        self._sync(display_handler)
 
     def get_button_multi_state(self, serial_number: str, page: int, button: int) -> ButtonMultiState:
         """Returns a deep copy of a button's full multi-state (for copy/paste)."""
@@ -420,7 +488,7 @@ class StreamDeckServer:
         self.state[serial_number].buttons[page][button] = deepcopy(multi_state)
         self._save_state()
         self._update_button_filters(serial_number, page, button)
-        self.display_handlers[serial_number].synchronize()
+        self._sync(self.display_handlers[serial_number])
 
     def get_page_button_count(self, serial_number: str, page: int) -> int:
         """Returns the number of buttons on the given page."""
@@ -431,17 +499,18 @@ class StreamDeckServer:
         self.state[serial_number].buttons[page][button] = ButtonMultiState(state=0, states={0: ButtonState()})
         self._save_state()
         self._update_button_filters(serial_number, page, button)
-        self.display_handlers[serial_number].synchronize()
+        self._sync(self.display_handlers[serial_number])
 
     def clone_page(self, serial_number: str, page: int) -> int:
         """Creates a new page that is a copy of the given page. Returns the new
         page index."""
         new_page_index = self.add_new_page(serial_number)
-        self.state[serial_number].buttons[new_page_index] = deepcopy(self.state[serial_number].buttons[page])
-        self._save_state()
-        for button in self.state[serial_number].buttons[new_page_index]:
-            self._update_button_filters(serial_number, new_page_index, button)
-        self.display_handlers[serial_number].synchronize()
+        with self.batch():
+            self.state[serial_number].buttons[new_page_index] = deepcopy(self.state[serial_number].buttons[page])
+            self._save_state()
+            for button in self.state[serial_number].buttons[new_page_index]:
+                self._update_button_filters(serial_number, new_page_index, button)
+            self._sync(self.display_handlers[serial_number])
         return new_page_index
 
     def set_button_text(self, deck_id: str, page: int, button: int, text: str) -> None:
@@ -451,7 +520,7 @@ class StreamDeckServer:
             self._save_state()
             self._update_button_filters(deck_id, page, button)
             display_handler = self.display_handlers[deck_id]
-            display_handler.synchronize()
+            self._sync(display_handler)
 
     def get_button_text(self, deck_id: str, page: int, button: int) -> str:
         """Returns the text set for the specified button"""
@@ -465,7 +534,7 @@ class StreamDeckServer:
 
             self._update_button_filters(deck_id, page, button)
             display_handler = self.display_handlers[deck_id]
-            display_handler.synchronize()
+            self._sync(display_handler)
 
     def get_button_text_vertical_align(self, serial_number: str, page: int, button: int) -> str:
         """Gets the vertical text alignment. Values are bottom, middle-bottom, middle, middle-top, top"""
@@ -482,7 +551,7 @@ class StreamDeckServer:
             self._save_state()
             self._update_button_filters(serial_number, page, button)
             display_handler = self.display_handlers[serial_number]
-            display_handler.synchronize()
+            self._sync(display_handler)
 
     def set_button_text_vertical_align(self, serial_number: str, page: int, button: int, alignment: str) -> None:
         """Gets the vertical text alignment. Values are bottom, middle-bottom, middle, middle-top, top"""
@@ -491,7 +560,7 @@ class StreamDeckServer:
             self._save_state()
             self._update_button_filters(serial_number, page, button)
             display_handler = self.display_handlers[serial_number]
-            display_handler.synchronize()
+            self._sync(display_handler)
 
     def set_button_font_color(self, serial_number: str, page: int, button: int, color: str) -> None:
         """Sets the text color associated with a button"""
@@ -505,7 +574,7 @@ class StreamDeckServer:
 
             try:
                 display_handler = self.display_handlers[serial_number]
-                display_handler.synchronize()
+                self._sync(display_handler)
             except KeyError:
                 raise ValueError(f"Invalid serial number: {serial_number}")
 
@@ -525,7 +594,7 @@ class StreamDeckServer:
 
             try:
                 display_handler = self.display_handlers[serial_number]
-                display_handler.synchronize()
+                self._sync(display_handler)
             except KeyError:
                 raise ValueError(f"Invalid serial number: {serial_number}")
 
@@ -544,7 +613,7 @@ class StreamDeckServer:
             self._button_state(serial_number, page, button).live_source = source
             self._save_state()
             self._update_button_filters(serial_number, page, button)
-            self.display_handlers[serial_number].synchronize()
+            self._sync(self.display_handlers[serial_number])
 
     def get_button_live_source(self, serial_number: str, page: int, button: int) -> str:
         """Returns the live information source set for the specified button."""
@@ -584,7 +653,7 @@ class StreamDeckServer:
                     self._update_button_filters(serial_number, page, button)
                     deck_refreshed = True
             if deck_refreshed:
-                display_handler.synchronize()
+                self._sync(display_handler)
                 refreshed = True
         return refreshed
 
@@ -646,7 +715,7 @@ class StreamDeckServer:
             self._save_state()
             self._update_button_filters(serial_number, page, button)
             display_handler = self.display_handlers[serial_number]
-            display_handler.synchronize()
+            self._sync(display_handler)
 
     def get_button_font_size(self, serial_number: str, page: int, button: int) -> int:
         """Returns the font size set for the specified button"""
@@ -661,7 +730,7 @@ class StreamDeckServer:
             self._save_state()
             self._update_button_filters(serial_number, page, button)
             display_handler = self.display_handlers[serial_number]
-            display_handler.synchronize()
+            self._sync(display_handler)
 
     def get_button_keys(self, serial_number: str, page: int, button: int) -> str:
         """Returns the keys set for the specified button"""
@@ -730,7 +799,7 @@ class StreamDeckServer:
         # Let the display know to process new set of pipelines
         display_handler.set_page(page)
         # Wait for at least one cycle
-        display_handler.synchronize()
+        self._sync(display_handler)
 
     def get_focus_pages(self, serial_number: str) -> Dict[str, int]:
         """Returns the mapping of focused application id -> page for the deck."""
@@ -791,10 +860,11 @@ class StreamDeckServer:
 
         if self.state[serial_number].auto_pages_seeded:
             return
-        for preset in CONTROL_PRESETS:
-            self.add_auto_page(serial_number, preset.app, preset)
-        self.state[serial_number].auto_pages_seeded = True
-        self._save_state()
+        with self.batch():
+            for preset in CONTROL_PRESETS:
+                self.add_auto_page(serial_number, preset.app, preset)
+            self.state[serial_number].auto_pages_seeded = True
+            self._save_state()
 
     def remove_auto_page(self, serial_number: str, page: int) -> None:
         """Removes a page from the Auto group and deletes it."""
@@ -855,11 +925,12 @@ class StreamDeckServer:
         """Repaints every key on every auto page (used when the overlay changes)."""
         if serial_number not in self.display_handlers:
             return
-        for page in list(self.state[serial_number].auto_pages):
-            if page in self.state[serial_number].buttons:
-                for button in self.state[serial_number].buttons[page]:
-                    self._update_button_filters(serial_number, page, button)
-        self.display_handlers[serial_number].synchronize()
+        with self.batch():
+            for page in list(self.state[serial_number].auto_pages):
+                if page in self.state[serial_number].buttons:
+                    for button in self.state[serial_number].buttons[page]:
+                        self._update_button_filters(serial_number, page, button)
+            self._sync(self.display_handlers[serial_number])
 
     def apply_control_preset(self, serial_number: str, page: int, preset: "ControlPreset") -> None:
         """Replaces the buttons on ``page`` with a control preset's keys, clearing
@@ -868,24 +939,25 @@ class StreamDeckServer:
         from streamdeck_ui.modules.font_icons import render_named_solid_icon
 
         count = self.get_page_button_count(serial_number, page)
-        for button in range(count):
-            self.clear_button(serial_number, page, button)
+        with self.batch():
+            for button in range(count):
+                self.clear_button(serial_number, page, button)
 
-        for index, action in enumerate(preset.actions):
-            if index >= count:
-                break
-            if action.text:
-                self.set_button_text(serial_number, page, index, action.text)
-            if action.keys:
-                self.set_button_keys(serial_number, page, index, action.keys)
-            if action.write:
-                self.set_button_write(serial_number, page, index, action.write)
-            if action.command:
-                self.set_button_command(serial_number, page, index, action.command)
-            if action.icon:
-                icon_path = render_named_solid_icon(action.icon)
-                if icon_path:
-                    self.set_button_icon(serial_number, page, index, icon_path)
+            for index, action in enumerate(preset.actions):
+                if index >= count:
+                    break
+                if action.text:
+                    self.set_button_text(serial_number, page, index, action.text)
+                if action.keys:
+                    self.set_button_keys(serial_number, page, index, action.keys)
+                if action.write:
+                    self.set_button_write(serial_number, page, index, action.write)
+                if action.command:
+                    self.set_button_command(serial_number, page, index, action.command)
+                if action.icon:
+                    icon_path = render_named_solid_icon(action.icon)
+                    if icon_path:
+                        self.set_button_icon(serial_number, page, index, icon_path)
 
     def _update_streamdeck_filters(self, serial_number: str):
         """Updates the filters for all the StreamDeck buttons.

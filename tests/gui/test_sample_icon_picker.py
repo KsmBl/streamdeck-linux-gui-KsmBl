@@ -70,6 +70,46 @@ def test_picker_search_and_color(qtbot):
 
 
 @pytest.mark.serial
+def test_picker_keeps_original_icon_path(qtbot, tmp_path):
+    from PIL import Image
+
+    icon = tmp_path / "play.png"
+    Image.new("RGBA", (16, 16), (255, 255, 255, 255)).save(icon)
+
+    picker = gui.SampleIconPicker(None, {"media": [("Play", str(icon))]})
+    qtbot.addWidget(picker)
+    picker.list.setCurrentRow(0)
+
+    # The list shows a (drop-shadowed) preview, but the stored path is the original.
+    assert picker.selected_icon_path() == str(icon)
+
+
+@pytest.mark.serial
+def test_picker_builds_callable_category_in_background(qtbot, tmp_path):
+    from PIL import Image
+
+    icon = tmp_path / "a.png"
+    Image.new("RGBA", (16, 16), (255, 255, 255, 255)).save(icon)
+
+    calls = []
+
+    def provider():
+        calls.append(True)
+        return [("Async Icon", str(icon))]
+
+    picker = gui.SampleIconPicker(None, {"fa": provider})
+    qtbot.addWidget(picker)
+
+    # The expensive provider is run on a worker thread; the list fills in once done.
+    qtbot.waitUntil(
+        lambda: picker.list.count() == 1 and picker.list.item(0).text() == "Async Icon",
+        timeout=3000,
+    )
+    assert calls
+    picker.done(0)  # wait for / tear down the worker
+
+
+@pytest.mark.serial
 def test_media_presets_are_valid_keys():
     from streamdeck_ui.modules.keyboard import get_valid_key_names
 
