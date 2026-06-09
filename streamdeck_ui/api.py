@@ -857,13 +857,15 @@ class StreamDeckServer:
         has no preset), or None when not configured."""
         return self.state[serial_number].home_page
 
-    # Live dashboard tiles for the Home page: (source, fitting background colour).
+    # Live dashboard tiles for the Home page: (source, background, alt_source).
+    # When ``alt_source`` is set the tile becomes a two-state toggle that cycles
+    # between the two live sources on press.
     _HOME_TILES = (
-        ("cpu_temp", "#c62828"),  # red (heat)
-        ("cpu", "#2e7d32"),  # green
-        ("memory", "#f9a825"),  # yellow
-        ("network", "#1565c0"),  # blue
-        ("clock", "#7e57c2"),  # violet
+        ("cpu_temp", "#c62828", None),  # red (heat)
+        ("cpu", "#2e7d32", None),  # green
+        ("memory", "#f9a825", "memory_used"),  # yellow: % <-> absolute
+        ("network", "#1565c0", None),  # blue
+        ("clock", "#7e57c2", "date"),  # violet: time <-> date
     )
 
     def _build_home_page(self, serial_number: str) -> int:
@@ -882,10 +884,7 @@ class StreamDeckServer:
         # carries the up/down network arrows, else the default font.
         tile_font = find_font_by_name("jetbrainsmononl", "nfp", "extrabold") or find_symbol_font()
 
-        count = self.get_page_button_count(serial_number, page)
-        for index, (source, background) in enumerate(self._HOME_TILES):
-            if index >= count:
-                break
+        def style(index: int, source: str, background: str) -> None:
             self.set_button_live_source(serial_number, page, index, source)
             self.set_button_text_vertical_align(serial_number, page, index, "middle")
             self.set_button_text_horizontal_align(serial_number, page, index, "center")
@@ -894,6 +893,19 @@ class StreamDeckServer:
             self.set_button_font_color(serial_number, page, index, "#ffffff")
             if tile_font:
                 self.set_button_font(serial_number, page, index, tile_font)
+
+        count = self.get_page_button_count(serial_number, page)
+        for index, (source, background, alt_source) in enumerate(self._HOME_TILES):
+            if index >= count:
+                break
+            style(index, source, background)
+            if alt_source:
+                # Second state shown after a press; cycling toggles between them.
+                second = self.add_new_button_state(serial_number, page, index)
+                self.set_button_state(serial_number, page, index, second)
+                style(index, alt_source, background)
+                self.set_button_state(serial_number, page, index, 0)
+                self.set_button_cycle_states(serial_number, page, index, True)
         return page
 
     def seed_default_auto_pages(self, serial_number: str) -> None:

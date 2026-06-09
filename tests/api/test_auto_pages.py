@@ -84,6 +84,19 @@ def test_seed_default_auto_pages(api_server):
     assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS) + 1
 
 
+def test_home_memory_tile_toggles_percent_and_absolute(api_server):
+    api_server.state[STREAMDECK_SERIAL].auto_pages_seeded = False
+    api_server.seed_default_auto_pages(STREAMDECK_SERIAL)
+    home = api_server.get_home_page(STREAMDECK_SERIAL)
+
+    # The memory tile (index 2) cycles between two live sources on press.
+    states = api_server.get_button_states(STREAMDECK_SERIAL, home, 2)
+    assert len(states) == 2
+    assert api_server.get_button_cycle_states(STREAMDECK_SERIAL, home, 2) is True
+    assert api_server.get_button_state_object(STREAMDECK_SERIAL, home, 2, states[0]).live_source == "memory"
+    assert api_server.get_button_state_object(STREAMDECK_SERIAL, home, 2, states[1]).live_source == "memory_used"
+
+
 def test_reset_auto_pages_restores_defaults(api_server):
     from streamdeck_ui.modules.control_presets import CONTROL_PRESETS
 

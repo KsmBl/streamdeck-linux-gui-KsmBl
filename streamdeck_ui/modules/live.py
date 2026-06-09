@@ -23,6 +23,7 @@ LIVE_SOURCES: List[Tuple[str, str]] = [
     ("cpu", "CPU usage"),
     ("cpu_temp", "CPU temperature"),
     ("memory", "Memory usage"),
+    ("memory_used", "Memory used (absolute)"),
     ("battery", "Battery"),
     ("network", "Network speed"),
 ]
@@ -138,6 +139,26 @@ def _read_memory_percent() -> str:
     return f"MEM\n{max(0.0, min(100.0, used)):.0f}%"
 
 
+def _read_memory_used() -> str:
+    """Returns the absolute amount of memory currently in use (e.g. ``5.1G``)."""
+    info: Dict[str, int] = {}
+    try:
+        with open("/proc/meminfo", "r") as meminfo:
+            for line in meminfo:
+                key, _, rest = line.partition(":")
+                info[key] = int(rest.strip().split()[0])  # kB
+    except (OSError, ValueError, IndexError):
+        return "MEM --"
+    total = info.get("MemTotal", 0)
+    available = info.get("MemAvailable", info.get("MemFree", 0))
+    if total <= 0:
+        return "MEM --"
+    used_kib = max(0, total - available)
+    if used_kib >= 1024 * 1024:
+        return f"MEM\n{used_kib / (1024 * 1024):.1f}G"
+    return f"MEM\n{used_kib / 1024:.0f}M"
+
+
 def _find_battery_dir() -> str:
     base = "/sys/class/power_supply"
     try:
@@ -239,6 +260,8 @@ def live_text(source: str) -> str:
         return _read_cpu_temp()
     if source == "memory":
         return _read_memory_percent()
+    if source == "memory_used":
+        return _read_memory_used()
     if source == "battery":
         return _read_battery()
     if source == "network":
