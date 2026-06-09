@@ -421,6 +421,9 @@ def _auto_entry_page(deck_id: str) -> Optional[int]:
         bound = api.get_focus_pages(deck_id).get(_last_focused_app)
         if bound in auto_pages:
             return bound
+    home = api.get_home_page(deck_id)
+    if home in auto_pages:
+        return home
     return auto_pages[0]
 
 
@@ -2268,8 +2271,8 @@ def handle_focus_changed(ui, app: str) -> None:
 
     Switching only happens while the deck is already inside the Auto group ("on
     the auto tab"): the deck follows the focused application between its auto
-    pages, and stays put when the focused app has no auto page. Runs in the GUI
-    thread (queued signal from the watcher)."""
+    pages, falling back to the Home dashboard when the focused app has no preset.
+    Runs in the GUI thread (queued signal from the watcher)."""
     global _last_focused_app
     _last_focused_app = app
     for deck_id in list(api.decks_by_serial.keys()):
@@ -2280,7 +2283,10 @@ def handle_focus_changed(ui, app: str) -> None:
                 continue
 
             target_page = api.get_focus_pages(deck_id).get(app)
-            # The focused app has no auto page; stay on the current one.
+            # The focused app has no auto page of its own; fall back to the Home
+            # dashboard (and only stay put if there is no Home page either).
+            if target_page is None or target_page not in auto_pages:
+                target_page = api.get_home_page(deck_id)
             if target_page is None or target_page not in auto_pages:
                 continue
             if api.get_page(deck_id) == target_page:
@@ -2634,9 +2640,13 @@ class AutoPagePanel(QWidget):
 
     def refresh(self) -> None:
         self.list.clear()
+        home = api.get_home_page(self._deck_id)
         for page in api.get_auto_pages(self._deck_id):
-            app = api.get_focus_app_for_page(self._deck_id, page) or "(no application)"
-            item = QListWidgetItem(f"{app}  —  Page {page + 1}", self.list)
+            if page == home:
+                label = "Home (shown when the focused app has no preset)"
+            else:
+                label = api.get_focus_app_for_page(self._deck_id, page) or "(no application)"
+            item = QListWidgetItem(f"{label}  —  Page {page + 1}", self.list)
             item.setData(Qt.ItemDataRole.UserRole, page)
         self.remove_overlay_button.setEnabled(api.get_overlay_page(self._deck_id) is not None)
         self._update_enabled()

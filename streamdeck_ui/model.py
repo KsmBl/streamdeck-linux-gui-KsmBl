@@ -74,6 +74,9 @@ class DeckState:
     auto_pages_seeded: bool = False
     """True once the default per-application auto pages have been created, so the
     defaults are seeded only once and not recreated after the user edits them."""
+    home_page: Optional[int] = None
+    """Auto page shown when the focused application has no preset of its own (a
+    dashboard with live info and a Leave Auto key). ``None`` when not configured."""
 
 
 @dataclass

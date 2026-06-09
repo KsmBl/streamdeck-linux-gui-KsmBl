@@ -852,15 +852,48 @@ class StreamDeckServer:
         """True once the default per-application auto pages have been created."""
         return self.state[serial_number].auto_pages_seeded
 
+    def get_home_page(self, serial_number: str) -> Optional[int]:
+        """Returns the Home auto page (the dashboard shown when the focused app
+        has no preset), or None when not configured."""
+        return self.state[serial_number].home_page
+
+    def _build_home_page(self, serial_number: str) -> int:
+        """Creates the Home auto page: live-info tiles (CPU temperature/usage,
+        memory, network, clock) plus a Leave Auto key. It is an auto page but is
+        bound to no application, so it acts as the fallback dashboard."""
+        from streamdeck_ui.config import SWITCH_PAGE_LEAVE_AUTO
+        from streamdeck_ui.modules.font_icons import render_named_solid_icon
+
+        page = self.add_new_page(serial_number)
+        if page not in self.state[serial_number].auto_pages:
+            self.state[serial_number].auto_pages.append(page)
+        self.state[serial_number].home_page = page
+
+        count = self.get_page_button_count(serial_number, page)
+        index = 0
+        for source in ("cpu_temp", "cpu", "memory", "network", "clock"):
+            if index >= count:
+                break
+            self.set_button_live_source(serial_number, page, index, source)
+            index += 1
+        if index < count:
+            self.set_button_text(serial_number, page, index, "Leave")
+            self.set_button_switch_page(serial_number, page, index, SWITCH_PAGE_LEAVE_AUTO)
+            icon = render_named_solid_icon("right-from-bracket")
+            if icon:
+                self.set_button_icon(serial_number, page, index, icon)
+        return page
+
     def seed_default_auto_pages(self, serial_number: str) -> None:
-        """Creates one Auto page per built-in control preset, bound to its
-        application and seeded with its controls. Runs once per deck (guarded by
+        """Creates the Home dashboard page plus one Auto page per built-in control
+        preset (bound to its application). Runs once per deck (guarded by
         ``auto_pages_seeded``) so the defaults are not recreated after editing."""
         from streamdeck_ui.modules.control_presets import CONTROL_PRESETS
 
         if self.state[serial_number].auto_pages_seeded:
             return
         with self.batch():
+            self._build_home_page(serial_number)
             for preset in CONTROL_PRESETS:
                 self.add_auto_page(serial_number, preset.app, preset)
             self.state[serial_number].auto_pages_seeded = True
@@ -885,6 +918,7 @@ class StreamDeckServer:
                 self.clear_overlay_page(serial_number)
                 self.remove_page(serial_number, overlay)
             self.state[serial_number].auto_pages_seeded = False
+            self.state[serial_number].home_page = None
             self.seed_default_auto_pages(serial_number)
         # The deck may still have been on a now-deleted page; land on a valid one.
         pages = self.get_pages(serial_number)
@@ -896,6 +930,8 @@ class StreamDeckServer:
         """Removes a page from the Auto group and deletes it."""
         if page in self.state[serial_number].auto_pages:
             self.state[serial_number].auto_pages.remove(page)
+        if self.state[serial_number].home_page == page:
+            self.state[serial_number].home_page = None
         # remove_page also drops the focus binding and persists the change.
         self.remove_page(serial_number, page)
         self._save_state()

@@ -78,6 +78,7 @@ TEST_CONFIG_STATE = {
         "auto_pages": [],
         "overlay_page": None,
         "auto_pages_seeded": False,
+        "home_page": None,
     }
 }
 TEST_CONFIG_STATE_V1 = {

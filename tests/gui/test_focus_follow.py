@@ -38,6 +38,20 @@ def test_focus_unmapped_app_stays_on_current_auto_page(api_and_window, mocker):
 
 
 @pytest.mark.serial
+def test_focus_unmapped_app_falls_back_to_home(api_and_window, mocker):
+    """While in the Auto group, focusing an app with no preset shows the Home page."""
+    main_window, api = api_and_window
+    api.reset_dimmer = mocker.MagicMock(return_value=False)
+    api.state[STREAMDECK_SERIAL].auto_pages = [0, 1]
+    api.state[STREAMDECK_SERIAL].home_page = 1
+    api.set_focus_page(STREAMDECK_SERIAL, "firefox", 0)
+    api.set_page(STREAMDECK_SERIAL, 0)
+
+    gui.handle_focus_changed(main_window.ui, "some-app-with-no-preset")
+    assert api.get_page(STREAMDECK_SERIAL) == 1
+
+
+@pytest.mark.serial
 def test_no_switch_when_not_on_an_auto_page(api_and_window, mocker):
     """Focus changes are ignored unless the deck is currently in the Auto group."""
     main_window, api = api_and_window

@@ -69,10 +69,10 @@ def test_build_device_seeds_default_auto_pages(api_and_window, mocker):
 
     gui.build_device(ui, api)
 
-    # One auto page per preset, listed in the Auto tab; only one Auto tab exists.
-    assert len(api.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS)
+    # One auto page per preset plus the Home page, listed in the Auto tab.
+    assert len(api.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS) + 1
     auto_tab = ui.pages.widget(ui.pages.count() - 1)
-    assert auto_tab.findChild(AutoPagePanel).list.count() == len(CONTROL_PRESETS)
+    assert auto_tab.findChild(AutoPagePanel).list.count() == len(CONTROL_PRESETS) + 1
     page_ids = [ui.pages.widget(i).property("page_id") for i in range(ui.pages.count())]
     assert page_ids.count(None) == 1
 

@@ -64,14 +64,19 @@ def test_seed_default_auto_pages(api_server):
     api_server.seed_default_auto_pages(STREAMDECK_SERIAL)
 
     assert api_server.is_auto_seeded(STREAMDECK_SERIAL)
-    assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS)
+    # One page per preset plus the Home dashboard page.
+    assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS) + 1
+    # The Home page exists, is an auto page and is bound to no application.
+    home = api_server.get_home_page(STREAMDECK_SERIAL)
+    assert home in api_server.get_auto_pages(STREAMDECK_SERIAL)
+    assert api_server.get_focus_app_for_page(STREAMDECK_SERIAL, home) is None
     # Presets with an application are bound to it.
     apps = set(api_server.get_focus_pages(STREAMDECK_SERIAL).keys())
     assert {"firefox", "vivaldi", "thunar", "gimp"} <= apps
 
     # Seeding is idempotent — running again creates nothing new.
     api_server.seed_default_auto_pages(STREAMDECK_SERIAL)
-    assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS)
+    assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS) + 1
 
 
 def test_reset_auto_pages_restores_defaults(api_server):
@@ -89,9 +94,10 @@ def test_reset_auto_pages_restores_defaults(api_server):
 
     # The deck ends up on a page that still exists.
     assert api_server.get_page(STREAMDECK_SERIAL) in api_server.get_pages(STREAMDECK_SERIAL)
-    # The overlay is gone and the defaults are back.
+    # The overlay is gone and the defaults (presets + Home) are back.
     assert api_server.get_overlay_page(STREAMDECK_SERIAL) is None
-    assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS)
+    assert len(api_server.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS) + 1
+    assert api_server.get_home_page(STREAMDECK_SERIAL) in api_server.get_auto_pages(STREAMDECK_SERIAL)
     apps = set(api_server.get_focus_pages(STREAMDECK_SERIAL).keys())
     assert {"firefox", "discord", "vlc"} <= apps
     assert "custom-app" not in apps

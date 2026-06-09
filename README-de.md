@@ -52,11 +52,14 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   automatisch gesetzt (die Schrift ist mitgeliefert). Programmkürzel wirken auf das jeweils fokussierte
   Fenster — kombinieren Sie eine Vorlage mit einer **Auto-Seite**, um automatisch dorthin zu wechseln.
 * **Auto-Seiten** — ein **Auto**-Reiter bündelt mehrere anwendungsbezogene Seiten, denen das Deck
-  automatisch folgt. Er ist sofort einsatzbereit: beim ersten Start wird er **mit je einer Seite pro
-  Steuerungs-Vorlage vorbefüllt, jeweils an deren Programm gebunden** (Firefox, Vivaldi, Thunar, GIMP,
-  …). Jede Auto-Seite wird angezeigt, sobald ihr Programm den Fokus erhält — allerdings nur, solange
-  sich das Deck *in* der Auto-Gruppe befindet, sodass es Ihrem Fokus nur dann folgt, wenn Sie es
-  möchten. Mit einer **Go to Auto**-Taste betreten Sie die Gruppe, mit **Leave Auto** kehren Sie zu
+  automatisch folgt. Er ist sofort einsatzbereit: beim ersten Start wird er **mit einer Home-Übersicht
+  sowie je einer Seite pro Steuerungs-Vorlage vorbefüllt, jeweils an deren Programm gebunden** (Firefox,
+  Vivaldi, Thunar, GIMP, …). Jede Auto-Seite wird angezeigt, sobald ihr Programm den Fokus erhält —
+  allerdings nur, solange sich das Deck *in* der Auto-Gruppe befindet, sodass es Ihrem Fokus nur dann
+  folgt, wenn Sie es möchten. Hat das fokussierte Programm keine Vorlage, fällt das Deck auf die
+  **Home**-Seite zurück — ein Live-Dashboard mit CPU-Temperatur, CPU- und Speicherauslastung,
+  Netzwerktempo, einer Uhr und einer „Leave Auto“-Taste. Mit einer **Go to Auto**-Taste betreten Sie
+  die Gruppe, mit **Leave Auto** kehren Sie zu
   Ihren normalen Seiten zurück (die Tasten **◀ Prev** / **Next ▶** bleiben auf den normalen Seiten und
   wechseln nie in die Auto-Seiten). Im Auto-Reiter können Sie ein Programm hinzufügen (mit einer
   Steuerungs-Vorlage vorbefüllt), das einer Seite zugeordnete Programm ändern (mit einer **Detect
