@@ -94,6 +94,26 @@ class DisplayGrid:
             if self.current_page == page:
                 self.current_page = next(iter(self.pages), 0)
 
+    def blank_image(self) -> Image.Image:
+        """Returns a blank key-sized image (used by takeover modes like the
+        on-deck game to draw their own frames)."""
+        if self.streamdeck.is_visual():
+            return PILHelper.create_image(self.streamdeck)
+        return Image.new("RGB", self.size, (0, 0, 0))
+
+    def set_image(self, button: int, image: Image.Image) -> None:
+        """Pushes a PIL image directly to a key, bypassing the pipelines. The
+        render loop should be stopped first (see ``stop``) so it does not fight
+        the caller for the display."""
+        if not self.streamdeck.is_visual():
+            return
+        try:
+            native = PILHelper.to_native_format(self.streamdeck, image)
+            with self.lock:
+                self.streamdeck.set_key_image(button, native)
+        except (TransportError, OSError, ValueError):
+            pass
+
     def replace(self, page: int, button: int, filters: List[Filter]):
         with self.lock:
             pipeline = Pipeline()

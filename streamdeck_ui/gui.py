@@ -11,6 +11,7 @@ from subprocess import Popen  # nosec - Need to allow users to specify arbitrary
 from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 from importlib_metadata import PackageNotFoundError, version
+from PIL import Image
 from PySide6.QtCore import QMimeData, QSettings, QSignalBlocker, QSize, Qt, QThread, QTimer, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
@@ -104,6 +105,7 @@ from streamdeck_ui.modules.keyboard import (
 )
 from streamdeck_ui.modules.live import LIVE_SOURCES, is_live_source
 from streamdeck_ui.modules.sample_icons import list_sample_icons
+from streamdeck_ui.modules.snake import SnakeModel
 from streamdeck_ui.modules.theme import (
     THEME_DEFAULT,
     THEME_MODERN,
@@ -149,6 +151,9 @@ _focus_switching: bool = False
 
 _last_focused_app: Optional[str] = None
 "Most recent focused application reported by the watcher (read on hot paths to avoid a synchronous probe)"
+
+deck_game: Optional["DeckSnake"] = None
+"The on-deck Snake game while it is taking over a Stream Deck, else None"
 
 BUTTON_STYLE = """
     QToolButton {
@@ -280,6 +285,13 @@ class DraggableButton(QToolButton):
 
 def handle_keypress(ui, deck_id: str, key: int, state: bool) -> None:
     # TODO: Handle both key down and key up events in future.
+    # While the on-deck Snake game owns this deck, keys drive the game instead of
+    # running button actions.
+    if deck_game is not None and deck_game.deck_id == deck_id:
+        if state:
+            deck_game.on_key(key)
+        return
+
     if state:
         if api.reset_dimmer(deck_id):
             return
@@ -708,6 +720,10 @@ def refresh_live_buttons() -> None:
     """Timer tick: re-render live buttons on each deck and mirror the change in
     the in-app preview grid for the page currently shown."""
     if main_window is None:
+        return
+    # The on-deck game has stopped the render loop; a synchronize() now would
+    # block, so skip the live refresh entirely while it owns a deck.
+    if deck_game is not None:
         return
     if not api.refresh_live_buttons():
         return
@@ -2805,8 +2821,15 @@ class SnakeGame(QWidget):
         self._height = self.ROWS
 
         outer = QVBoxLayout(self)
+        top_row = QHBoxLayout()
         self._status = QLabel(self)
-        outer.addWidget(self._status)
+        top_row.addWidget(self._status, 1)
+        self._deck_button = QPushButton("Play on Stream Deck", self)
+        self._deck_button.setToolTip("Take over the connected Stream Deck and play on its keys")
+        self._deck_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._deck_button.clicked.connect(self._toggle_deck)
+        top_row.addWidget(self._deck_button)
+        outer.addLayout(top_row)
 
         board = QWidget(self)
         grid = QGridLayout(board)
@@ -2947,6 +2970,149 @@ class SnakeGame(QWidget):
     def hideEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().hideEvent(event)
         self._timer.stop()
+        # Leaving the tab returns the deck to its normal display.
+        if deck_game is not None:
+            deck_game.stop()
+            self._deck_button.setText("Play on Stream Deck")
+
+    def _toggle_deck(self) -> None:
+        if deck_game is not None:
+            deck_game.stop()
+            self._deck_button.setText("Play on Stream Deck")
+            return
+        deck_id = _deck()
+        deck = api.decks_by_serial.get(deck_id) if deck_id is not None else None
+        if deck_id is None or deck is None or not deck.is_visual():
+            QMessageBox.information(self, "No Stream Deck", "Connect a Stream Deck to play on its keys.")
+            return
+        rows, cols = api.get_deck_layout(deck_id)
+        if cols < 2 or rows < 2:
+            QMessageBox.information(self, "Stream Deck too small", "This Stream Deck has too few keys for the game.")
+            return
+        DeckSnake(main_window.ui, deck_id).start()
+        self._deck_button.setText("Stop on Stream Deck")
+
+
+class DeckSnake:
+    """Plays Snake on the physical Stream Deck. While active it pauses the normal
+    render loop and draws the game straight to the keys; the rightmost column
+    becomes the controls. Two-button relative turning (turn left / turn right,
+    plus restart) keeps it playable on any deck size."""
+
+    _EMPTY = (18, 19, 24)
+    _BODY = (58, 166, 87)
+    _HEAD = (124, 252, 138)
+    _FOOD = (224, 85, 97)
+    _CONTROL_BG = (40, 42, 52)
+    _CONTROL_ICONS = {"left": "rotate-left", "right": "rotate-right", "restart": "arrows-rotate"}
+
+    def __init__(self, ui, deck_id: str):
+        self._ui = ui
+        self.deck_id = deck_id
+        self.display = api.display_handlers[deck_id]
+        self.rows, self.cols = api.get_deck_layout(deck_id)
+        self.play_w = self.cols - 1
+        self.play_h = self.rows
+        self.model = SnakeModel(self.play_w, self.play_h)
+
+        last = self.cols - 1
+        self._controls: Dict[int, str] = {0 * self.cols + last: "left"}
+        if self.rows >= 2:
+            self._controls[1 * self.cols + last] = "right"
+        if self.rows >= 3:
+            self._controls[2 * self.cols + last] = "restart"
+        self._icon_cache: Dict[str, Optional[Image.Image]] = {}
+
+        self.timer = QTimer()
+        self.timer.setInterval(180)
+        self.timer.timeout.connect(self._tick)
+
+    def start(self) -> None:
+        global deck_game
+        deck_game = self
+        api.reset_dimmer(self.deck_id)
+        self.display.stop()  # pause the normal render loop; we draw the keys directly
+        self.model.reset()
+        self._render()
+
+    def stop(self, restore: bool = True) -> None:
+        global deck_game
+        self.timer.stop()
+        if deck_game is self:
+            deck_game = None
+        if restore:
+            try:
+                self.display.start()  # resume normal rendering (redraws the page)
+            except Exception as error:  # noqa: BLE001 - never let teardown crash the UI
+                print(f"Could not resume the display after the on-deck game: {error}")
+
+    def on_key(self, key: int) -> None:
+        action = self._controls.get(key)
+        if action == "restart":
+            self.model.reset()
+        elif action == "left":
+            self.model.turn(left=True)
+        elif action == "right":
+            self.model.turn(left=False)
+        else:
+            return
+        api.reset_dimmer(self.deck_id)
+        if self.model.alive and not self.timer.isActive():
+            self.timer.start()
+        self._render()
+
+    def _tick(self) -> None:
+        if not self.model.step():
+            self.timer.stop()
+        self._render()
+
+    def _render(self) -> None:
+        try:
+            head = self.model.head
+            body = set(self.model.snake)
+            for index in range(self.rows * self.cols):
+                self.display.set_image(index, self._key_image(index, body, head))
+        except Exception as error:  # noqa: BLE001 - rendering must never crash the game/UI
+            print(f"Snake render error: {error}")
+
+    def _key_image(self, index: int, body: set, head: Tuple[int, int]) -> Image.Image:
+        if index in self._controls:
+            return self._control_image(self._controls[index])
+        col, row = index % self.cols, index // self.cols
+        if col < self.play_w and row < self.play_h:
+            cell = (col, row)
+            if cell == head:
+                color = self._HEAD
+            elif cell in body:
+                color = self._BODY
+            elif cell == self.model.food:
+                color = self._FOOD
+            else:
+                color = self._EMPTY
+            return Image.new("RGB", self.display.size, color)
+        return Image.new("RGB", self.display.size, (0, 0, 0))
+
+    def _control_image(self, action: str) -> Image.Image:
+        image = Image.new("RGB", self.display.size, self._CONTROL_BG)
+        glyph = self._load_icon(action)
+        if glyph is not None:
+            image.paste(glyph, ((image.width - glyph.width) // 2, (image.height - glyph.height) // 2), glyph)
+        return image
+
+    def _load_icon(self, action: str) -> Optional[Image.Image]:
+        if action not in self._icon_cache:
+            icon: Optional[Image.Image] = None
+            path = render_named_solid_icon(self._CONTROL_ICONS[action])
+            if path:
+                try:
+                    glyph = Image.open(path).convert("RGBA")
+                    side = int(min(self.display.size) * 0.6)
+                    glyph.thumbnail((side, side))
+                    icon = glyph
+                except (OSError, ValueError):
+                    icon = None
+            self._icon_cache[action] = icon
+        return self._icon_cache[action]
 
 
 def build_control_presets_menu(ui) -> None:
@@ -3145,6 +3311,9 @@ def streamdeck_attached(ui, deck: Dict):
 
 
 def streamdeck_detached(ui, serial_number):
+    # If the on-deck game owned this deck, abandon it (the display is gone).
+    if deck_game is not None and deck_game.deck_id == serial_number:
+        deck_game.stop(restore=False)
     index = ui.device_list.findData(serial_number)
     if index != -1:
         # Should not be (how can you remove a device that was never attached?)
