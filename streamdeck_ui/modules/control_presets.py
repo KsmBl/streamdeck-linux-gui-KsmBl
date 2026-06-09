@@ -133,6 +133,7 @@ _VIM = ControlPreset(
         ControlAction("Select\nAll", "esc,g,g,shift+v,shift+g", icon="check-double"),
         ControlAction("Save\nAll", "esc,shift+semicolon,w,a,enter", icon="floppy-disk"),
     ],
+    app="gvim",
 )
 
 # Multimedia keys are global and work no matter which application is focused.
@@ -147,6 +148,7 @@ _MEDIA = ControlPreset(
         ControlAction("Vol -", "volumedown", icon="volume-low"),
         ControlAction("Mute", "mute", icon="volume-xmark"),
     ],
+    app="spotify",
 )
 
 _GIMP = ControlPreset(
