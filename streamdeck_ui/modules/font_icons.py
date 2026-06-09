@@ -354,6 +354,17 @@ PRESET_ICON_CODEPOINTS: Dict[str, int] = {
     "eraser": 0xF12D,
     "fill-drip": 0xF576,
     "crop-simple": 0xF565,
+    "microphone-slash": 0xF131,
+    "headphones": 0xF025,
+    "chevron-up": 0xF077,
+    "chevron-down": 0xF078,
+    "phone": 0xF095,
+    "backward": 0xF04A,
+    "forward": 0xF04E,
+    "closed-captioning": 0xF20A,
+    "camera": 0xF332,
+    "repeat": 0x1F501,
+    "shuffle": 0xF074,
 }
 
 # Reverse lookups so enumerated glyphs can reuse the curated display names where

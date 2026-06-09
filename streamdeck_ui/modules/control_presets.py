@@ -172,8 +172,46 @@ _GIMP = ControlPreset(
     app="gimp",
 )
 
+_DISCORD = ControlPreset(
+    "Discord",
+    [
+        ControlAction("Quick\nSwitch", "ctrl+k", icon="magnifying-glass"),
+        ControlAction("Mute\nMic", "ctrl+shift+m", icon="microphone-slash"),
+        ControlAction("Deafen", "ctrl+shift+d", icon="headphones"),
+        ControlAction("Prev\nChannel", "alt+up", icon="chevron-up"),
+        ControlAction("Next\nChannel", "alt+down", icon="chevron-down"),
+        ControlAction("Prev\nServer", "ctrl+alt+up", icon="angles-up"),
+        ControlAction("Next\nServer", "ctrl+alt+down", icon="angles-down"),
+        ControlAction("Mark\nRead", "shift+esc", icon="check-double"),
+        ControlAction("Answer", "ctrl+enter", icon="phone"),
+        ControlAction("Close", "esc", icon="xmark"),
+    ],
+    app="discord",
+)
+
+_VLC = ControlPreset(
+    "VLC",
+    [
+        ControlAction("Play /\nPause", "space", icon="play"),
+        ControlAction("Stop", "s", icon="stop"),
+        ControlAction("Prev", "p", icon="backward-step"),
+        ControlAction("Next", "n", icon="forward-step"),
+        ControlAction("Jump\nBack", "alt+left", icon="backward"),
+        ControlAction("Jump\nFwd", "alt+right", icon="forward"),
+        ControlAction("Vol +", "ctrl+up", icon="volume-high"),
+        ControlAction("Vol -", "ctrl+down", icon="volume-low"),
+        ControlAction("Mute", "m", icon="volume-xmark"),
+        ControlAction("Full\nScreen", "f", icon="expand"),
+        ControlAction("Subtitle", "v", icon="closed-captioning"),
+        ControlAction("Snapshot", "shift+s", icon="camera"),
+        ControlAction("Loop", "l", icon="repeat"),
+        ControlAction("Random", "r", icon="shuffle"),
+    ],
+    app="vlc",
+)
+
 # Order shown in the menu.
-CONTROL_PRESETS: List[ControlPreset] = [_FIREFOX, _VIVALDI, _THUNAR, _VIM, _MEDIA, _GIMP]
+CONTROL_PRESETS: List[ControlPreset] = [_FIREFOX, _VIVALDI, _THUNAR, _VIM, _MEDIA, _GIMP, _DISCORD, _VLC]
 
 
 def preset_names() -> List[Tuple[str, ControlPreset]]:
