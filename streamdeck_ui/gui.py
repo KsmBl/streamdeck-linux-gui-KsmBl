@@ -1,9 +1,11 @@
 """Defines the QT powered interface for configuring Stream Decks"""
 
 import os
+import random
 import shlex
 import signal
 import sys
+from collections import deque
 from functools import partial
 from subprocess import Popen  # nosec - Need to allow users to specify arbitrary commands
 from typing import Callable, Dict, List, Optional, Tuple, Union, cast
@@ -1977,9 +1979,16 @@ def build_device(ui, _device_index=None) -> None:
         if current_page in auto_pages or current_page == overlay_page:
             active_tab_index = auto_tab_index
 
-        # Only the normal pages (everything but the Auto tab) count towards the
-        # "can a page be removed" check.
-        normal_tabs = ui.pages.count() - 1
+        # A built-in Snake mini-game (purely in-window; not tied to a deck page).
+        snake_tab = QWidget()
+        snake_tab.setProperty("deck_id", deck_id)
+        snake_layout = QVBoxLayout(snake_tab)
+        snake_layout.setContentsMargins(0, 0, 0, 0)
+        snake_layout.addWidget(SnakeGame(snake_tab))
+        ui.pages.addTab(snake_tab, "🐍 Snake")
+
+        # Only real (page-bearing) tabs count towards the "can a page be removed" check.
+        normal_tabs = sum(1 for tab in range(ui.pages.count()) if ui.pages.widget(tab).property("page_id") is not None)
         ui.remove_page.setEnabled(normal_tabs > 1)
 
         if ui.device_list.count() > 0:
@@ -2773,6 +2782,171 @@ class AutoPagePanel(QWidget):
         # Rebuild after the slot returns (this panel is replaced) and land on the
         # freshly seeded Auto tab.
         QTimer.singleShot(0, partial(_rebuild_to_auto_tab, self._ui))
+
+
+class SnakeGame(QWidget):
+    """A self-contained Snake mini-game in its own tab. The grid is the
+    playfield; the rightmost column holds the direction controls and a restart
+    button. Play with the on-screen controls or the arrow / WASD keys."""
+
+    ROWS = 5
+    COLS = 8  # the last column is the control column; the rest is playfield
+
+    _EMPTY = "#15161b"
+    _BODY = "#3aa657"
+    _HEAD = "#7cfc8a"
+    _FOOD = "#e05561"
+    _DELTAS = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self._width = self.COLS - 1
+        self._height = self.ROWS
+
+        outer = QVBoxLayout(self)
+        self._status = QLabel(self)
+        outer.addWidget(self._status)
+
+        board = QWidget(self)
+        grid = QGridLayout(board)
+        grid.setSpacing(4)
+        outer.addWidget(board, 1)
+        outer.addStretch(1)
+
+        self._cells: Dict[Tuple[int, int], QToolButton] = {}
+        for y in range(self._height):
+            for x in range(self._width):
+                cell = QToolButton(board)
+                cell.setEnabled(False)
+                cell.setFixedSize(QSize(54, 54))
+                grid.addWidget(cell, y, x)
+                self._cells[(x, y)] = cell
+
+        for row, (label, action) in enumerate(
+            [("▲", "up"), ("▼", "down"), ("◀", "left"), ("▶", "right"), ("⟳", "restart")]
+        ):
+            if row >= self.ROWS:
+                break
+            button = QPushButton(label, board)
+            button.setFixedSize(QSize(54, 54))
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            button.clicked.connect(partial(self._control, action))
+            grid.addWidget(button, row, self.COLS - 1)
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(180)
+        self._timer.timeout.connect(self._tick)
+        self._reset()
+
+    def _reset(self) -> None:
+        cx, cy = self._width // 2, self._height // 2
+        # The snake is a deque with the tail at index 0 and the head at index -1.
+        self._snake: "deque[Tuple[int, int]]" = deque([(cx - 2, cy), (cx - 1, cy), (cx, cy)])
+        self._dir = (1, 0)
+        self._next_dir = (1, 0)
+        self._alive = True
+        self._score = 0
+        self._place_food()
+        self._render()
+        self._status.setText("Snake — press an arrow (or a control) to start.  Score: 0")
+
+    def _place_food(self) -> None:
+        free = [(x, y) for x in range(self._width) for y in range(self._height) if (x, y) not in self._snake]
+        self._food = random.choice(free) if free else None
+
+    def _control(self, action: str) -> None:
+        if action == "restart":
+            self._reset()
+        else:
+            self._set_direction(self._DELTAS[action])
+        self.setFocus()
+
+    def _set_direction(self, delta: Tuple[int, int]) -> None:
+        if not self._alive:
+            return
+        # Ignore a reversal straight back onto the neck.
+        if delta == (-self._dir[0], -self._dir[1]):
+            return
+        self._next_dir = delta
+        if not self._timer.isActive():
+            self._timer.start()
+
+    def _tick(self) -> None:
+        if not self._alive:
+            return
+        self._dir = self._next_dir
+        head_x, head_y = self._snake[-1]
+        new_head = (head_x + self._dir[0], head_y + self._dir[1])
+
+        will_grow = new_head == self._food
+        body = set(self._snake)
+        if not will_grow:
+            body.discard(self._snake[0])  # the tail moves out of the way this tick
+        if not (0 <= new_head[0] < self._width) or not (0 <= new_head[1] < self._height) or new_head in body:
+            self._game_over()
+            return
+
+        self._snake.append(new_head)
+        if will_grow:
+            self._score += 1
+            self._place_food()
+            if self._food is None:
+                self._game_over(win=True)
+                return
+            self._status.setText(f"Score: {self._score}")
+        else:
+            self._snake.popleft()
+        self._render()
+
+    def _game_over(self, win: bool = False) -> None:
+        self._alive = False
+        self._timer.stop()
+        prefix = "You win! " if win else "Game over! "
+        self._status.setText(f"{prefix}Score: {self._score}  —  press ⟳ to restart")
+
+    def _render(self) -> None:
+        head = self._snake[-1]
+        body = set(self._snake)
+        for (x, y), cell in self._cells.items():
+            if (x, y) == head:
+                color = self._HEAD
+            elif (x, y) in body:
+                color = self._BODY
+            elif (x, y) == self._food:
+                color = self._FOOD
+            else:
+                color = self._EMPTY
+            cell.setStyleSheet(f"background-color: {color}; border: 1px solid #2a2c34; border-radius: 6px;")
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt override
+        mapping = {
+            Qt.Key.Key_Up: "up",
+            Qt.Key.Key_W: "up",
+            Qt.Key.Key_Down: "down",
+            Qt.Key.Key_S: "down",
+            Qt.Key.Key_Left: "left",
+            Qt.Key.Key_A: "left",
+            Qt.Key.Key_Right: "right",
+            Qt.Key.Key_D: "right",
+        }
+        action = mapping.get(event.key())
+        if action is not None:
+            self._control(action)
+            event.accept()
+        elif event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter) and not self._alive:
+            self._control("restart")
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().showEvent(event)
+        self.setFocus()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().hideEvent(event)
+        self._timer.stop()
 
 
 def build_control_presets_menu(ui) -> None:

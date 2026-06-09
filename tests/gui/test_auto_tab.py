@@ -3,13 +3,19 @@ from streamdeck_ui.gui import AutoPagePanel
 from tests.common import STREAMDECK_SERIAL
 
 
-def test_auto_tab_is_appended(api_and_window):
+def _auto_tab(ui):
+    for tab in range(ui.pages.count()):
+        widget = ui.pages.widget(tab)
+        if widget.property("auto_tab"):
+            return widget
+    raise AssertionError("Auto tab not found")
+
+
+def test_auto_tab_is_present(api_and_window):
     main_window, _api = api_and_window
-    ui = main_window.ui
-    # The last tab is always the synthetic Auto tab (no page id).
-    last = ui.pages.widget(ui.pages.count() - 1)
-    assert last.property("auto_tab") is True
-    assert last.property("page_id") is None
+    auto_tab = _auto_tab(main_window.ui)
+    assert auto_tab.property("auto_tab") is True
+    assert auto_tab.property("page_id") is None
 
 
 def test_auto_pages_hidden_from_normal_strip_and_listed_in_panel(api_and_window):
@@ -18,10 +24,11 @@ def test_auto_pages_hidden_from_normal_strip_and_listed_in_panel(api_and_window)
     api.add_auto_page(STREAMDECK_SERIAL, "firefox")
     gui.build_device(ui, api)
 
-    # No normal tab represents the auto page; it lives inside the Auto tab.
-    auto_tab = ui.pages.widget(ui.pages.count() - 1)
+    # No normal tab represents the auto page; it lives inside the Auto tab. Only
+    # the synthetic Auto and Snake tabs carry no page id.
+    auto_tab = _auto_tab(ui)
     page_ids = [ui.pages.widget(i).property("page_id") for i in range(ui.pages.count())]
-    assert page_ids.count(None) == 1  # only the Auto tab has no page id
+    assert page_ids.count(None) == 2
 
     panel = auto_tab.findChild(AutoPagePanel)
     assert panel is not None
@@ -71,10 +78,10 @@ def test_build_device_seeds_default_auto_pages(api_and_window, mocker):
 
     # One auto page per preset plus the Home page, listed in the Auto tab.
     assert len(api.get_auto_pages(STREAMDECK_SERIAL)) == len(CONTROL_PRESETS) + 1
-    auto_tab = ui.pages.widget(ui.pages.count() - 1)
+    auto_tab = _auto_tab(ui)
     assert auto_tab.findChild(AutoPagePanel).list.count() == len(CONTROL_PRESETS) + 1
     page_ids = [ui.pages.widget(i).property("page_id") for i in range(ui.pages.count())]
-    assert page_ids.count(None) == 1
+    assert page_ids.count(None) == 2  # the Auto and Snake tabs
 
 
 def test_prev_next_skip_auto_and_overlay_pages(api_and_window):
@@ -96,8 +103,8 @@ def test_edit_auto_page_in_place_without_adding_a_tab(api_and_window):
     gui.build_device(ui, api)
 
     # Select the Auto tab (as a user would) before editing.
-    ui.pages.setCurrentIndex(ui.pages.count() - 1)
-    auto_tab = ui.pages.currentWidget()
+    auto_tab = _auto_tab(ui)
+    ui.pages.setCurrentWidget(auto_tab)
     panel = auto_tab.findChild(AutoPagePanel)
     tabs_before = ui.pages.count()
 

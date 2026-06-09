@@ -61,6 +61,8 @@ credit for the original work goes to its authors and contributors.
   shared "Leave Auto" or media row — and **Reset to defaults** to wipe the group and restore the
   default presets. Detection works on X11, Sway and Hyprland (and KDE with `kdotool`);
   compositors that don't expose the focused window (e.g. GNOME Wayland) simply leave it inactive.
+* **Snake mini-game** — a **🐍 Snake** tab with a playfield and direction controls (and a restart) down
+  the right-hand side; play with the on-screen controls or the arrow / WASD keys.
 * **Themes** — pick a base look under **View**: the **Default** (platform) theme, a nostalgic
   **Windows XP** (Luna) theme, or a sleek **Modern** theme with flat rounded controls and an indigo
   accent (the accent colour is customisable via **View → Modern Accent Colour…**). **Dark Mode** is a

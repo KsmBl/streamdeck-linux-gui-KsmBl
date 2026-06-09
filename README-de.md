@@ -69,6 +69,8 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   und mit **Reset to defaults** die ganze Gruppe verwerfen und die Standard-Vorlagen wiederherstellen.
   Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit `kdotool`); Compositoren, die
   das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland), lassen die Funktion einfach inaktiv.
+* **Snake-Minispiel** — ein **🐍 Snake**-Reiter mit Spielfeld und Richtungstasten (samt Neustart) auf
+  der rechten Seite; spielbar über die Bildschirmtasten oder die Pfeil-/WASD-Tasten.
 * **Designs** — wählen Sie unter **View** ein Basis-Design: das **Default**-Design (Plattformlook),
   ein nostalgisches **Windows-XP**-Design (Luna) oder ein elegantes **Modern**-Design mit flachen,
   abgerundeten Bedienelementen und einem Indigo-Akzent (die Akzentfarbe ist über **View → Modern
