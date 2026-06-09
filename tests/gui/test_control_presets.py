@@ -29,6 +29,7 @@ def test_controls_button_has_a_menu(qtbot, api_and_window):
         "Thunar (files)",
         "Vim",
         "Media player",
+        "GIMP",
     ]
 
 

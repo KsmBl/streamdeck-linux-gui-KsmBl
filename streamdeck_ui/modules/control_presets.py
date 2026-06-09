@@ -44,6 +44,9 @@ class ControlPreset:
     name: str
     actions: List[ControlAction] = field(default_factory=list)
 
+    app: str = ""
+    "Window class / app id this surface controls, used to auto-bind an Auto page."
+
 
 # Most browsers share the same editing/navigation shortcuts; the small
 # differences (private window, downloads, reload) are spelled out per browser.
@@ -65,6 +68,7 @@ _FIREFOX = ControlPreset(
         ControlAction("Bookmark", "ctrl+d", icon="bookmark"),
         ControlAction("Full\nScreen", "f11", icon="expand"),
     ],
+    app="firefox",
 )
 
 _VIVALDI = ControlPreset(
@@ -85,6 +89,7 @@ _VIVALDI = ControlPreset(
         ControlAction("Downloads", "ctrl+j", icon="download"),
         ControlAction("Full\nScreen", "f11", icon="expand"),
     ],
+    app="vivaldi",
 )
 
 _THUNAR = ControlPreset(
@@ -105,6 +110,7 @@ _THUNAR = ControlPreset(
         ControlAction("Hidden\nFiles", "ctrl+h", icon="eye"),
         ControlAction("Props", "alt+enter", icon="circle-info"),
     ],
+    app="thunar",
 )
 
 # Vim is modal: each action first presses Esc to return to normal mode, then
@@ -143,8 +149,29 @@ _MEDIA = ControlPreset(
     ],
 )
 
+_GIMP = ControlPreset(
+    "GIMP",
+    [
+        ControlAction("New", "ctrl+n", icon="plus"),
+        ControlAction("Open", "ctrl+o", icon="folder-open"),
+        ControlAction("Save", "shift+ctrl+s", icon="floppy-disk"),
+        ControlAction("Export", "shift+ctrl+e", icon="file-export"),
+        ControlAction("Undo", "ctrl+z", icon="rotate-left"),
+        ControlAction("Redo", "ctrl+y", icon="rotate-right"),
+        ControlAction("Copy", "ctrl+c", icon="copy"),
+        ControlAction("Paste", "ctrl+v", icon="paste"),
+        ControlAction("Brush", "p", icon="paintbrush"),
+        ControlAction("Pencil", "n", icon="pen"),
+        ControlAction("Eraser", "shift+e", icon="eraser"),
+        ControlAction("Bucket\nFill", "shift+b", icon="fill-drip"),
+        ControlAction("Crop", "shift+c", icon="crop-simple"),
+        ControlAction("Fit\nImage", "shift+ctrl+j", icon="expand"),
+    ],
+    app="gimp",
+)
+
 # Order shown in the menu.
-CONTROL_PRESETS: List[ControlPreset] = [_FIREFOX, _VIVALDI, _THUNAR, _VIM, _MEDIA]
+CONTROL_PRESETS: List[ControlPreset] = [_FIREFOX, _VIVALDI, _THUNAR, _VIM, _MEDIA, _GIMP]
 
 
 def preset_names() -> List[Tuple[str, ControlPreset]]:

@@ -348,6 +348,12 @@ PRESET_ICON_CODEPOINTS: Dict[str, int] = {
     "volume-high": 0xF028,
     "volume-low": 0xF027,
     "volume-xmark": 0xF6A9,
+    "folder-open": 0xF07C,
+    "file-export": 0xF56E,
+    "paintbrush": 0xF1FC,
+    "eraser": 0xF12D,
+    "fill-drip": 0xF576,
+    "crop-simple": 0xF565,
 }
 
 # Reverse lookups so enumerated glyphs can reuse the curated display names where
