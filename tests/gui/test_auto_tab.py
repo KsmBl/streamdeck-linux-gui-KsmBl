@@ -38,6 +38,18 @@ def test_auto_pages_hidden_from_normal_strip_and_listed_in_panel(api_and_window)
     assert panel.list.count() == 1
 
 
+def test_auto_pages_listed_alphabetically(api_and_window):
+    main_window, api = api_and_window
+    ui = main_window.ui
+    for app in ("zed", "alpha", "mid"):  # added out of order
+        api.add_auto_page(STREAMDECK_SERIAL, app)
+    gui.build_device(ui, api)
+
+    panel = _auto_tab(ui).findChild(AutoPagePanel)
+    apps = [panel.list.item(i).text().split("  —  ")[0] for i in range(panel.list.count())]
+    assert apps == ["alpha", "mid", "zed"]
+
+
 def test_resolve_auto_uses_focused_app(api_and_window):
     _main_window, api = api_and_window
     api.state[STREAMDECK_SERIAL].auto_pages = [0, 1]

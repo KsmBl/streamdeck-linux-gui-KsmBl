@@ -2666,11 +2666,16 @@ class AutoPagePanel(QWidget):
     def refresh(self) -> None:
         self.list.clear()
         home = api.get_home_page(self._deck_id)
+        # Sort by application name; Home is pinned first and unbound pages last.
+        entries = []
         for page in api.get_auto_pages(self._deck_id):
+            app = api.get_focus_app_for_page(self._deck_id, page)
             if page == home:
-                label = "Home (shown when the focused app has no preset)"
+                label, sort_key = "Home (shown when the focused app has no preset)", ""
             else:
-                label = api.get_focus_app_for_page(self._deck_id, page) or "(no application)"
+                label, sort_key = (app or "(no application)"), (app or "\uffff").lower()
+            entries.append((sort_key, label, page))
+        for _key, label, page in sorted(entries, key=lambda entry: entry[0]):
             item = QListWidgetItem(f"{label}  —  Page {page + 1}", self.list)
             item.setData(Qt.ItemDataRole.UserRole, page)
         self.remove_overlay_button.setEnabled(api.get_overlay_page(self._deck_id) is not None)
