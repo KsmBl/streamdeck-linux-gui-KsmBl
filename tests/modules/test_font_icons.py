@@ -95,11 +95,11 @@ def test_find_symbol_font_prefers_a_font_with_arrows():
         "/usr/share/fonts/DejaVuSans.ttf: DejaVu Sans:style=Book\n"
     )
 
-    # Only DejaVu has the digit + both arrows.
+    # Only DejaVu has the digit, %, degree sign and both arrows.
     def fake_cmap(path):
         if "DejaVu" in path:
-            return {0x30: "zero", 0x2191: "up", 0x2193: "down"}
-        return {0x30: "zero"}
+            return {0x30: "zero", 0x25: "percent", 0xB0: "degree", 0x2191: "up", 0x2193: "down"}
+        return {0x30: "zero", 0x25: "percent", 0xB0: "degree"}
 
     try:
         with patch("subprocess.run") as run, patch.object(font_icons, "_font_codepoint_to_name", side_effect=fake_cmap):

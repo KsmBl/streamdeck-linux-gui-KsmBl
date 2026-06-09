@@ -641,9 +641,9 @@ _symbol_font_cache: List[Optional[str]] = []
 
 
 def find_symbol_font() -> Optional[str]:
-    """Returns a system font path that can render digits *and* the up/down arrow
-    glyphs (U+2191 / U+2193) used by live tiles, or ``None`` if none is found.
-    Cached after the first lookup."""
+    """Returns a system font path that can render every glyph the live Home tiles
+    use — a digit, ``%``, the degree sign and the up/down network arrows — or
+    ``None`` if none is found. Cached after the first lookup."""
     if _symbol_font_cache:
         return _symbol_font_cache[0]
 
@@ -653,7 +653,7 @@ def find_symbol_font() -> Optional[str]:
         output = ""
     candidates = [(line.lower(), line.split(":", 1)[0].strip()) for line in output.splitlines()]
 
-    needed = (0x30, 0x2191, 0x2193)  # "0", up arrow, down arrow
+    needed = (0x30, 0x25, 0xB0, 0x2191, 0x2193)  # digit, "%", degree sign, up/down arrows
 
     def has_glyphs(path: str) -> bool:
         cmap = _font_codepoint_to_name(path)
