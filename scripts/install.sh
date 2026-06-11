@@ -65,6 +65,7 @@ echo ">>> Installing the package and its dependencies (this can take a while)...
 echo ">>> Linking executables into $BIN_DIR ..."
 mkdir -p "$BIN_DIR"
 ln -sf "$VENV_DIR/bin/streamdeck" "$BIN_DIR/streamdeck"
+ln -sf "$VENV_DIR/bin/streamdeck-tui" "$BIN_DIR/streamdeck-tui"
 ln -sf "$VENV_DIR/bin/streamdeckc" "$BIN_DIR/streamdeckc"
 
 # --- desktop integration --------------------------------------------------

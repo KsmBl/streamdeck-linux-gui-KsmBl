@@ -32,7 +32,7 @@ systemctl --user daemon-reload 2>/dev/null || true
 pkill -f "$INSTALL_DIR/venv/bin/streamdeck" 2>/dev/null || true
 
 echo ">>> Removing executables and virtual environment ..."
-rm -f "$BIN_DIR/streamdeck" "$BIN_DIR/streamdeckc"
+rm -f "$BIN_DIR/streamdeck" "$BIN_DIR/streamdeck-tui" "$BIN_DIR/streamdeckc"
 rm -rf "$INSTALL_DIR"
 
 echo ">>> Removing application launcher and icon ..."

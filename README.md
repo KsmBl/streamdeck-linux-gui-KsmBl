@@ -71,6 +71,14 @@ credit for the original work goes to its authors and contributors.
   between sessions.
 * **Background daemon** — run detached with `streamdeck --daemon` (no window needed); stop with
   `streamdeck --daemon-kill` and check with `streamdeck --daemon-status`.
+* **Terminal (text) UI** — for machines with no graphical desktop (a headless server, an SSH
+  session or a bare TTY), run `streamdeck-tui` (or `streamdeck --tui`). It is built on the standard
+  library `curses`, so it needs no extra dependency, and it drives the deck for real: button
+  presses run their commands, switch pages and update live tiles. Move the selection with the arrow
+  keys (or `hjkl`), change page with `[` / `]`, switch deck with `Tab`, adjust brightness with
+  `+` / `-`, add/remove pages with `a` / `d`, and press `Enter` to edit the selected button's text,
+  command, keys, write, switch-page, brightness and live source. Press `q` to quit. It shares the
+  single-instance lock with the GUI, so run one or the other.
 * **Installer** — `scripts/install.sh` sets everything up into an isolated virtual environment,
   with shell completions (fish/bash/zsh) and an optional autostart service.
 
@@ -96,8 +104,8 @@ cd streamdeck-linux-gui-KsmBl
 scripts/install.sh            # add --enable-service to start in the background on login
 ```
 
-It installs the udev rules, builds an isolated virtual environment, links the `streamdeck` and
-`streamdeckc` commands into `~/.local/bin`, adds an application launcher and installs shell
+It installs the udev rules, builds an isolated virtual environment, links the `streamdeck`,
+`streamdeck-tui` and `streamdeckc` commands into `~/.local/bin`, adds an application launcher and installs shell
 completions for the shells you have. Remove everything again with `scripts/uninstall.sh`
 (`--purge` also deletes your configuration).
 

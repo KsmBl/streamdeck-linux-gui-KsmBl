@@ -74,6 +74,7 @@ from streamdeck_ui.config import (
     do_config_file_migration,
 )
 from streamdeck_ui.display.text_filter import is_a_valid_text_filter_font
+from streamdeck_ui.modules import actions
 from streamdeck_ui.modules.applications import (
     DesktopApplication,
     list_desktop_applications,
@@ -292,92 +293,35 @@ def handle_keypress(ui, deck_id: str, key: int, state: bool) -> None:
             deck_game.on_key(key)
         return
 
-    if state:
-        if api.reset_dimmer(deck_id):
-            return
+    if not state:
+        return
 
-        # On an auto page an overlay key acts in place of the underlying key, so
-        # resolve the slot the action and state actually live on.
-        page, key = api.resolve_overlay(deck_id, api.get_page(deck_id), key)
-        command = api.get_button_command(deck_id, page, key)
-        keys = api.get_button_keys(deck_id, page, key)
-        write = api.get_button_write(deck_id, page, key)
-        brightness_change = api.get_button_change_brightness(deck_id, page, key)
-        switch_page = api.get_button_switch_page(deck_id, page, key)
-        switch_state = api.get_button_switch_state(deck_id, page, key)
+    # The real effects (command, keys, write, brightness, page/state changes)
+    # are run by the shared, Qt-free action core so the text UI behaves
+    # identically. The result tells us what changed so the window can mirror it.
+    result = actions.execute_key_action(
+        api,
+        deck_id,
+        key,
+        resolve_switch_page=_resolve_switch_page_target,
+        on_warning=show_tray_warning_message,
+    )
+    if result is None or _deck() != deck_id:
+        return
 
-        if command:
-            try:
-                Popen(shlex.split(command))  # nosec, need to allow execution of arbitrary commands
-            except Exception as error:
-                print(f"The command '{command}' failed: {error}")
-                show_tray_warning_message("The command failed to execute.")
+    if result.switched_to_page is not None:
+        for page_tab in range(ui.pages.count()):
+            if ui.pages.widget(page_tab).property("page_id") == result.switched_to_page:
+                ui.pages.setCurrentIndex(page_tab)
+                break
 
-        if keys:
-            try:
-                keyboard_press_keys(keys)
-            except Exception as error:
-                print(f"Could not press keys '{keys}': {error}")
-                show_tray_warning_message(f"Unable to perform key press action. {error}")
-
-        if write:
-            try:
-                keyboard_write(write)
-            except Exception as error:
-                print(f"Could not complete the write command: {error}")
-                show_tray_warning_message("Unable to perform write action.")
-
-        if brightness_change:
-            try:
-                api.change_brightness(deck_id, brightness_change)
-            except Exception as error:
-                print(f"Could not change brightness: {error}")
-                show_tray_warning_message("Unable to change brightness.")
-
-        if switch_page:
-            target_page = _resolve_switch_page_target(deck_id, page, switch_page)
-            if target_page is not None:
-                api.set_page(deck_id, target_page)
-                if _deck() == deck_id:
-                    for page_tab in range(ui.pages.count()):
-                        if ui.pages.widget(page_tab).property("page_id") == target_page:
-                            ui.pages.setCurrentIndex(page_tab)
-                            break
-            else:
-                show_tray_warning_message(
-                    f"Unable to perform switch page, the page {switch_page} does not exist in your current settings"  # noqa: E713
-                )
-
-        if switch_state:
-            switch_state_index = switch_state - 1
-            if switch_state_index in api.get_button_states(deck_id, page, key):
-                api.set_button_state(deck_id, page, key, switch_state_index)
-                if _deck() == deck_id:
-                    if _button() == key:
-                        for button_state in range(ui.button_states.count()):
-                            if ui.button_states.widget(button_state).property("button_state_id") == switch_state_index:
-                                ui.button_states.setCurrentIndex(button_state)
-                                break
-                    redraw_button(key)
-            else:
-                show_tray_warning_message(
-                    f"Unable to perform switch button state, the button state {switch_state} does not exist in your current settings"  # noqa: E713
-                )
-
-        if api.get_button_cycle_states(deck_id, page, key):
-            states = api.get_button_states(deck_id, page, key)
-            if len(states) > 1:
-                current_state = api.get_button_state(deck_id, page, key)
-                position = states.index(current_state) if current_state in states else 0
-                next_state = states[(position + 1) % len(states)]
-                api.set_button_state(deck_id, page, key, next_state)
-                if _deck() == deck_id:
-                    if _button() == key:
-                        for button_state in range(ui.button_states.count()):
-                            if ui.button_states.widget(button_state).property("button_state_id") == next_state:
-                                ui.button_states.setCurrentIndex(button_state)
-                                break
-                    redraw_button(key)
+    if result.new_button_state is not None:
+        if _button() == result.button:
+            for button_state in range(ui.button_states.count()):
+                if ui.button_states.widget(button_state).property("button_state_id") == result.new_button_state:
+                    ui.button_states.setCurrentIndex(button_state)
+                    break
+        redraw_button(result.button)
 
 
 def _resolve_switch_page_target(deck_id: str, current_page: int, switch_page: int) -> Optional[int]:
@@ -389,36 +333,14 @@ def _resolve_switch_page_target(deck_id: str, current_page: int, switch_page: in
     SWITCH_PAGE_LEAVE_AUTO returns to the last normal page. Returns None if the
     target does not exist.
     """
-    pages = api.get_pages(deck_id)
-    if not pages:
-        return None
-
-    if switch_page in (SWITCH_PAGE_NEXT, SWITCH_PAGE_PREVIOUS):
-        # Relative paging only walks the normal pages; auto pages and the overlay
-        # are reached through the Auto group, not Prev/Next.
-        auto_pages = api.get_auto_pages(deck_id)
-        overlay_page = api.get_overlay_page(deck_id)
-        normal = [page for page in pages if page not in auto_pages and page != overlay_page]
-        if not normal:
-            return None
-        if current_page not in normal:
-            return normal[0]
-        step = 1 if switch_page == SWITCH_PAGE_NEXT else -1
-        return normal[(normal.index(current_page) + step) % len(normal)]
-
-    if switch_page == SWITCH_PAGE_AUTO:
-        return _auto_entry_page(deck_id)
-
-    if switch_page == SWITCH_PAGE_LEAVE_AUTO:
-        auto_pages = api.get_auto_pages(deck_id)
-        last = last_manual_page.get(deck_id)
-        if last is not None and last in pages and last not in auto_pages:
-            return last
-        normal = [page for page in pages if page not in auto_pages and page != api.get_overlay_page(deck_id)]
-        return normal[0] if normal else None
-
-    target_page = switch_page - 1
-    return target_page if target_page in pages else None
+    return actions.resolve_switch_page(
+        api,
+        deck_id,
+        current_page,
+        switch_page,
+        last_manual_page=last_manual_page,
+        last_focused_app=_last_focused_app,
+    )
 
 
 def _auto_entry_page(deck_id: str) -> Optional[int]:
@@ -428,17 +350,7 @@ def _auto_entry_page(deck_id: str) -> Optional[int]:
     The focused app is read from the background watcher's last value (updated by
     handle_focus_changed) rather than probing synchronously, so entering the Auto
     group from a key press never blocks the UI on a subprocess."""
-    auto_pages = api.get_auto_pages(deck_id)
-    if not auto_pages:
-        return None
-    if _last_focused_app is not None:
-        bound = api.get_focus_pages(deck_id).get(_last_focused_app)
-        if bound in auto_pages:
-            return bound
-    home = api.get_home_page(deck_id)
-    if home in auto_pages:
-        return home
-    return auto_pages[0]
+    return actions.auto_entry_page(api, deck_id, _last_focused_app)
 
 
 def _deck() -> Optional[str]:
@@ -3387,8 +3299,15 @@ def start(_exit: bool = False) -> None:
         print("  -h, --help\tShow this message")
         print("  -n, --no-ui\tRun the program without showing a UI")
         print("  -d, --daemon\tRun detached in the background (implies --no-ui)")
+        print("  --tui\t\tRun the terminal (text) interface, for use without a graphical desktop")
         print("  --daemon-kill\tStop the running background instance and exit")
         print("  --daemon-status\tReport whether an instance is running and exit")
+        return
+
+    if "--tui" in sys.argv:
+        from streamdeck_ui import tui
+
+        tui.start()
         return
 
     if "--daemon-status" in sys.argv:

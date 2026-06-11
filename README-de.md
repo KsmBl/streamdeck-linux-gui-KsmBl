@@ -81,6 +81,16 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   gemerkt.
 * **Hintergrund-Daemon** — mit `streamdeck --daemon` losgelöst starten (ohne Fenster), mit
   `streamdeck --daemon-kill` beenden und mit `streamdeck --daemon-status` prüfen.
+* **Terminal-Oberfläche (Text-UI)** — für Rechner ohne grafische Oberfläche (ein Server ohne
+  Desktop, eine SSH-Sitzung oder ein nacktes TTY) `streamdeck-tui` (oder `streamdeck --tui`)
+  ausführen. Sie basiert auf dem Standardmodul `curses`, braucht also keine zusätzliche
+  Abhängigkeit, und steuert das Deck wirklich: Tastendrücke führen ihre Befehle aus, wechseln
+  Seiten und aktualisieren Live-Kacheln. Die Auswahl bewegst du mit den Pfeiltasten (oder `hjkl`),
+  die Seite wechselst du mit `[` / `]`, das Deck mit `Tab`, die Helligkeit mit `+` / `-`, Seiten
+  fügst du mit `a` hinzu bzw. entfernst sie mit `d`, und mit `Enter` bearbeitest du Text, Befehl,
+  Tasten, Schreibtext, Seitenwechsel, Helligkeit und Live-Quelle der gewählten Taste. Mit `q`
+  beendest du sie. Sie teilt sich die Einzelinstanz-Sperre mit der GUI, also nur eines von beiden
+  starten.
 * **Installationsskript** — `scripts/install.sh` richtet alles in einer isolierten virtuellen
   Umgebung ein, inklusive Shell-Vervollständigungen (fish/bash/zsh) und optionalem Autostart-Dienst.
 
@@ -107,7 +117,7 @@ scripts/install.sh            # mit --enable-service im Hintergrund beim Anmelde
 ```
 
 Es installiert die udev-Regeln, baut eine isolierte virtuelle Umgebung, verknüpft die Befehle
-`streamdeck` und `streamdeckc` nach `~/.local/bin`, legt einen Anwendungsstarter an und installiert
+`streamdeck`, `streamdeck-tui` und `streamdeckc` nach `~/.local/bin`, legt einen Anwendungsstarter an und installiert
 Shell-Vervollständigungen für die vorhandenen Shells. Mit `scripts/uninstall.sh` wird alles wieder
 entfernt (`--purge` löscht zusätzlich Ihre Konfiguration).
 
