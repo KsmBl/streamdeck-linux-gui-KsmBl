@@ -28,10 +28,10 @@ def test_auto_pages_hidden_from_normal_strip_and_listed_in_panel(api_and_window)
     gui.build_device(ui, api)
 
     # No normal tab represents the auto page; it lives inside the Auto tab. Only
-    # the synthetic Auto and Snake tabs carry no page id.
+    # the synthetic Auto, Snake and Lights Out tabs carry no page id.
     auto_tab = _auto_tab(ui)
     page_ids = [ui.pages.widget(i).property("page_id") for i in range(ui.pages.count())]
-    assert page_ids.count(None) == 2
+    assert page_ids.count(None) == 3
 
     panel = auto_tab.findChild(AutoPagePanel)
     assert panel is not None
@@ -96,7 +96,7 @@ def test_build_device_seeds_default_auto_pages(api_and_window, mocker):
     auto_tab = _auto_tab(ui)
     assert auto_tab.findChild(AutoPagePanel).list.count() == len(CONTROL_PRESETS) + 1
     page_ids = [ui.pages.widget(i).property("page_id") for i in range(ui.pages.count())]
-    assert page_ids.count(None) == 2  # the Auto and Snake tabs
+    assert page_ids.count(None) == 3  # the Auto, Snake and Lights Out tabs
 
 
 def test_prev_next_skip_auto_and_overlay_pages(api_and_window):

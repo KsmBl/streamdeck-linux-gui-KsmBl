@@ -64,6 +64,9 @@ credit for the original work goes to its authors and contributors.
   compositors that don't expose the focused window (e.g. GNOME Wayland) simply leave it inactive.
 * **Snake mini-game** — a **🐍 Snake** tab with a playfield and direction controls (and a restart) down
   the right-hand side; play with the on-screen controls or the arrow / WASD keys.
+* **Lights Out puzzle** — a **💡 Lights Out** tab: click a cell to toggle it and its four neighbours and
+  turn every light off. Both games can also be **played on the Stream Deck itself** via *Play on Stream
+  Deck* — the keys become the board.
 * **Themes** — pick a base look under **View**: the **Default** (platform) theme, a nostalgic
   **Windows XP** (Luna) theme, or a sleek **Modern** theme with flat rounded controls and an indigo
   accent (the accent colour is customisable via **View → Modern Accent Colour…**). **Dark Mode** is a

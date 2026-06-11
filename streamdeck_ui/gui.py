@@ -104,6 +104,7 @@ from streamdeck_ui.modules.keyboard import (
     keyboard_write,
     qt_key_to_evdev_name,
 )
+from streamdeck_ui.modules.lights_out import LightsOutModel
 from streamdeck_ui.modules.live import LIVE_SOURCES, is_live_source
 from streamdeck_ui.modules.sample_icons import list_sample_icons
 from streamdeck_ui.modules.snake import SnakeModel
@@ -153,8 +154,8 @@ _focus_switching: bool = False
 _last_focused_app: Optional[str] = None
 "Most recent focused application reported by the watcher (read on hot paths to avoid a synchronous probe)"
 
-deck_game: Optional["DeckSnake"] = None
-"The on-deck Snake game while it is taking over a Stream Deck, else None"
+deck_game: Optional["DeckGame"] = None
+"The on-deck mini-game (Snake or Lights Out) while it is taking over a Stream Deck, else None"
 
 BUTTON_STYLE = """
     QToolButton {
@@ -1915,6 +1916,14 @@ def build_device(ui, _device_index=None) -> None:
         snake_layout.addWidget(SnakeGame(snake_tab))
         ui.pages.addTab(snake_tab, "🐍 Snake")
 
+        # A built-in Lights Out puzzle (also in-window; not tied to a deck page).
+        lights_out_tab = QWidget()
+        lights_out_tab.setProperty("deck_id", deck_id)
+        lights_out_layout = QVBoxLayout(lights_out_tab)
+        lights_out_layout.setContentsMargins(0, 0, 0, 0)
+        lights_out_layout.addWidget(LightsOutGame(lights_out_tab))
+        ui.pages.addTab(lights_out_tab, "💡 Lights Out")
+
         # Only real (page-bearing) tabs count towards the "can a page be removed" check.
         normal_tabs = sum(1 for tab in range(ui.pages.count()) if ui.pages.widget(tab).property("page_id") is not None)
         ui.remove_page.setEnabled(normal_tabs > 1)
@@ -2926,7 +2935,22 @@ class SnakeGame(QWidget):
         self._deck_button.setText("Stop on Stream Deck")
 
 
-class DeckSnake:
+class DeckGame:
+    """Common interface for a mini-game that takes over the physical deck.
+
+    While one is active it owns ``deck_game``; ``handle_keypress`` routes key
+    presses to :meth:`on_key`, and the watcher stops it on detach or tab change."""
+
+    deck_id: str
+
+    def on_key(self, key: int) -> None:  # pragma: no cover - overridden
+        raise NotImplementedError
+
+    def stop(self, restore: bool = True) -> None:  # pragma: no cover - overridden
+        raise NotImplementedError
+
+
+class DeckSnake(DeckGame):
     """Plays Snake on the physical Stream Deck. While active it pauses the normal
     render loop and draws the game straight to the keys; the rightmost column
     becomes the controls. Two-button relative turning (turn left / turn right,
@@ -3046,6 +3070,164 @@ class DeckSnake:
                     icon = None
             self._icon_cache[action] = icon
         return self._icon_cache[action]
+
+
+class LightsOutGame(QWidget):
+    """A self-contained Lights Out puzzle in its own tab. Click a cell to toggle
+    it and its four orthogonal neighbours; turn every light off to win."""
+
+    SIZE = 5
+    _OFF = "#15161b"
+    _ON = "#f2c14e"
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.model = LightsOutModel(self.SIZE, self.SIZE)
+
+        outer = QVBoxLayout(self)
+        top_row = QHBoxLayout()
+        self._status = QLabel(self)
+        top_row.addWidget(self._status, 1)
+        self._new_button = QPushButton("New game", self)
+        self._new_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._new_button.clicked.connect(self._new_game)
+        top_row.addWidget(self._new_button)
+        self._deck_button = QPushButton("Play on Stream Deck", self)
+        self._deck_button.setToolTip("Take over the connected Stream Deck and play on its keys")
+        self._deck_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._deck_button.clicked.connect(self._toggle_deck)
+        top_row.addWidget(self._deck_button)
+        outer.addLayout(top_row)
+
+        board = QWidget(self)
+        grid = QGridLayout(board)
+        grid.setSpacing(4)
+        outer.addWidget(board, 1)
+        outer.addStretch(1)
+
+        self._cells: Dict[Tuple[int, int], QToolButton] = {}
+        for y in range(self.SIZE):
+            for x in range(self.SIZE):
+                cell = QToolButton(board)
+                cell.setFixedSize(QSize(60, 60))
+                cell.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                cell.clicked.connect(partial(self._press, x, y))
+                grid.addWidget(cell, y, x)
+                self._cells[(x, y)] = cell
+        self._render()
+
+    def _new_game(self) -> None:
+        self.model.reset()
+        self._render()
+
+    def _press(self, x: int, y: int) -> None:
+        if self.model.is_solved():
+            return
+        self.model.press(x, y)
+        self._render()
+
+    def _render(self) -> None:
+        for (x, y), cell in self._cells.items():
+            color = self._ON if self.model.is_lit(x, y) else self._OFF
+            cell.setStyleSheet(f"background-color: {color}; border: 1px solid #2a2c34; border-radius: 8px;")
+        if self.model.is_solved():
+            self._status.setText(f"Solved in {self.model.moves} moves!  —  press New game to play again.")
+        else:
+            lit = sum(1 for y in range(self.model.height) for x in range(self.model.width) if self.model.is_lit(x, y))
+            self._status.setText(f"Lights Out — turn every light off.  Lit: {lit}   Moves: {self.model.moves}")
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().hideEvent(event)
+        # Leaving the tab returns the deck to its normal display.
+        if deck_game is not None:
+            deck_game.stop()
+            self._deck_button.setText("Play on Stream Deck")
+
+    def _toggle_deck(self) -> None:
+        if deck_game is not None:
+            deck_game.stop()
+            self._deck_button.setText("Play on Stream Deck")
+            return
+        deck_id = _deck()
+        deck = api.decks_by_serial.get(deck_id) if deck_id is not None else None
+        if deck_id is None or deck is None or not deck.is_visual():
+            QMessageBox.information(self, "No Stream Deck", "Connect a Stream Deck to play on its keys.")
+            return
+        rows, cols = api.get_deck_layout(deck_id)
+        if cols < 2 or rows < 2:
+            QMessageBox.information(self, "Stream Deck too small", "This Stream Deck has too few keys for the game.")
+            return
+        DeckLightsOut(main_window.ui, deck_id).start()
+        self._deck_button.setText("Stop on Stream Deck")
+
+
+class DeckLightsOut(DeckGame):
+    """Plays Lights Out on the physical Stream Deck: every key is a cell, pressing
+    one toggles it and its orthogonal neighbours, and the board reshuffles shortly
+    after every light is off."""
+
+    _OFF = (18, 19, 24)
+    _ON = (242, 193, 78)
+    _SOLVED = (124, 252, 138)
+
+    def __init__(self, ui, deck_id: str):
+        self._ui = ui
+        self.deck_id = deck_id
+        self.display = api.display_handlers[deck_id]
+        self.rows, self.cols = api.get_deck_layout(deck_id)
+        self.model = LightsOutModel(self.cols, self.rows)
+        # After a win, briefly show the solved board, then deal a new puzzle.
+        self._solved_timer = QTimer()
+        self._solved_timer.setSingleShot(True)
+        self._solved_timer.setInterval(900)
+        self._solved_timer.timeout.connect(self._deal_new)
+
+    def start(self) -> None:
+        global deck_game
+        deck_game = self
+        api.reset_dimmer(self.deck_id)
+        self.display.stop()  # pause the normal render loop; we draw the keys directly
+        self.model.reset()
+        self._render()
+
+    def stop(self, restore: bool = True) -> None:
+        global deck_game
+        self._solved_timer.stop()
+        if deck_game is self:
+            deck_game = None
+        if restore:
+            try:
+                self.display.start()  # resume normal rendering (redraws the page)
+            except Exception as error:  # noqa: BLE001 - never let teardown crash the UI
+                print(f"Could not resume the display after the on-deck game: {error}")
+
+    def on_key(self, key: int) -> None:
+        if self._solved_timer.isActive():
+            return
+        x, y = key % self.cols, key // self.cols
+        if not self.model.press(x, y):
+            return
+        api.reset_dimmer(self.deck_id)
+        self._render()
+        if self.model.is_solved():
+            self._solved_timer.start()
+
+    def _deal_new(self) -> None:
+        self.model.reset()
+        self._render()
+
+    def _render(self) -> None:
+        try:
+            solved = self.model.is_solved()
+            for index in range(self.rows * self.cols):
+                x, y = index % self.cols, index // self.cols
+                if solved:
+                    color = self._SOLVED
+                else:
+                    color = self._ON if self.model.is_lit(x, y) else self._OFF
+                self.display.set_image(index, Image.new("RGB", self.display.size, color))
+        except Exception as error:  # noqa: BLE001 - rendering must never crash the game/UI
+            print(f"Lights Out render error: {error}")
 
 
 def build_control_presets_menu(ui) -> None:

@@ -10,14 +10,15 @@ def test_add_new_page(qtbot, api_and_window, mocker):
 
     method_spy = mocker.spy(api, "add_new_page")
 
-    # check how many pages are present (two real pages + the synthetic Auto tab)
-    assert main_window.ui.pages.count() == 4
+    # check how many pages are present (two real pages + the Auto, Snake and
+    # Lights Out tabs)
+    assert main_window.ui.pages.count() == 5
 
     # click the add page button
     qtbot.mouseClick(main_window.ui.add_page, Qt.LeftButton)
 
     # check that the page was added
-    assert main_window.ui.pages.count() == 5
+    assert main_window.ui.pages.count() == 6
 
     method_spy.assert_called_once()
 
@@ -31,14 +32,16 @@ def test_remove_page_with_confirmation(qtbot, api_and_window, mock_confirm_dialo
     # ensure that the confirmation dialog returns yes
     mock_confirm_dialog_exec.return_value = QMessageBox.StandardButton.Yes
 
-    # check how many pages are present (two real pages + the synthetic Auto tab)
-    assert main_window.ui.pages.count() == 4
+    # check how many pages are present (two real pages + the Auto, Snake and
+    # Lights Out tabs)
+    assert main_window.ui.pages.count() == 5
 
     # click the remove page button
     qtbot.mouseClick(main_window.ui.remove_page, Qt.LeftButton)
 
-    # check that the page was removed (one real page + the Auto and Snake tabs)
-    assert main_window.ui.pages.count() == 3
+    # check that the page was removed (one real page + the Auto, Snake and
+    # Lights Out tabs)
+    assert main_window.ui.pages.count() == 4
 
     method_spy.assert_called_once()
 
@@ -52,14 +55,15 @@ def test_remove_page_with_no_confirmation(qtbot, api_and_window, mock_confirm_di
     # ensure that the confirmation dialog returns yes
     mock_confirm_dialog_exec.return_value = QMessageBox.StandardButton.No
 
-    # check how many pages are present (two real pages + the synthetic Auto tab)
-    assert main_window.ui.pages.count() == 4
+    # check how many pages are present (two real pages + the Auto, Snake and
+    # Lights Out tabs)
+    assert main_window.ui.pages.count() == 5
 
     # click the remove page button
     qtbot.mouseClick(main_window.ui.remove_page, Qt.LeftButton)
 
     # check that the page was not removed
-    assert main_window.ui.pages.count() == 4
+    assert main_window.ui.pages.count() == 5
 
     method_spy.assert_not_called()
 
