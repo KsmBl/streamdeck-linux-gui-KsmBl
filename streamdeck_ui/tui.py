@@ -15,6 +15,7 @@ needs to keep their deck working.
 import curses
 import os
 import sys
+import textwrap
 from typing import Dict, List, Optional, Tuple
 
 from PySide6.QtCore import Qt
@@ -222,6 +223,49 @@ class TextUI:
         self.last_manual_page[self.deck_id] = target
         self.selected = min(self.selected, max(0, self._button_count() - 1))
 
+    def _tabs(self) -> List[Tuple[int, str, bool]]:
+        """The ordered tab strip as ``(page_id, label, is_auto)``.
+
+        Normal pages come first (numbered), then the auto pages (the Home
+        dashboard first, then one per application, alphabetically) so the whole
+        configuration — including the Auto group — is reachable from the strip.
+        The overlay page is a compositing layer, not a tab, so it is excluded.
+        """
+        deck_id = self.deck_id
+        if deck_id is None:
+            return []
+        auto = self.api.get_auto_pages(deck_id)
+        overlay = self.api.get_overlay_page(deck_id)
+        home = self.api.get_home_page(deck_id)
+        tabs: List[Tuple[int, str, bool]] = []
+        for number, page in enumerate(self._normal_pages(), start=1):
+            tabs.append((page, str(number), False))
+
+        def auto_label(page: int) -> str:
+            if page == home:
+                return "home"
+            return self.api.get_focus_app_for_page(deck_id, page) or "auto"
+
+        autos = [page for page in auto if page != overlay]
+        for page in sorted(autos, key=lambda p: ("" if p == home else auto_label(p).lower())):
+            tabs.append((page, auto_label(page), True))
+        return tabs
+
+    def _change_tab(self, step: int) -> None:
+        tabs = self._tabs()
+        deck_id = self.deck_id
+        if deck_id is None or not tabs:
+            return
+        ids = [tab[0] for tab in tabs]
+        current = self._page()
+        index = ids.index(current) if current in ids else 0
+        target_index = (index + step) % len(ids)
+        target, _label, is_auto = tabs[target_index]
+        self.api.set_page(deck_id, target)
+        if not is_auto:
+            self.last_manual_page[deck_id] = target
+        self.selected = min(self.selected, max(0, self._button_count() - 1))
+
     def _next_deck(self) -> None:
         serials = list(self.api.decks_by_serial)
         if not serials:
@@ -290,11 +334,11 @@ class TextUI:
         elif ch in (curses.KEY_DOWN, ord("j")):
             if self.selected + cols < count:
                 self.selected += cols
-        elif ch in (ord("]"), curses.KEY_NPAGE, ord(".")):
-            self._change_page(1)
-        elif ch in (ord("["), curses.KEY_PPAGE, ord(",")):
-            self._change_page(-1)
-        elif ch == ord("\t"):
+        elif ch in (ord("\t"), ord("]"), curses.KEY_NPAGE, ord(".")):
+            self._change_tab(1)
+        elif ch in (curses.KEY_BTAB, ord("["), curses.KEY_PPAGE, ord(",")):
+            self._change_tab(-1)
+        elif ch == ord("`"):
             self._next_deck()
         elif ch == ord("+"):
             self.api.set_brightness(self.deck_id, min(100, self.api.get_brightness(self.deck_id) + 10))
@@ -313,14 +357,25 @@ class TextUI:
             self.last_manual_page[self.deck_id] = page
             self._set_message(f"Added page {self._page_no()}")
         elif ch in (ord("d"), ord("D")):
-            if len(self.api.get_pages(self.deck_id)) > 1:
-                page = self._page()
-                self._change_page(-1)
-                self.api.remove_page(self.deck_id, page)
-                self._set_message("Removed a page")
-            else:
-                self._set_message("Cannot remove the only page")
+            self._delete_current_tab()
         return True
+
+    def _delete_current_tab(self) -> None:
+        """Removes the page behind the active tab — an auto page (with its app
+        binding) or, if it is a normal page and not the last one, a normal page."""
+        if self.deck_id is None:
+            return
+        page = self._page()
+        if self.api.is_auto_page(self.deck_id, page):
+            self._change_tab(-1)
+            self.api.remove_auto_page(self.deck_id, page)
+            self._set_message("Removed auto page")
+        elif len(self._normal_pages()) > 1:
+            self._change_tab(-1)
+            self.api.remove_page(self.deck_id, page)
+            self._set_message("Removed page")
+        else:
+            self._set_message("Cannot remove the only page")
 
     # -- Button editor -------------------------------------------------------
 
@@ -439,18 +494,52 @@ class TextUI:
             _safe_addstr(stdscr, 0, 15, f"· {deck_type}", _pair(C_HEADER))
             _safe_addstr(stdscr, 0, max(15, width - len(self.deck_id) - 2), self.deck_id, _pair(C_HEADER))
 
-            # Info line: page dots on the left, brightness gauge on the right.
-            normal = self._normal_pages()
-            current = self._page()
-            dots = " ".join("●" if page == current else "○" for page in normal)
-            _safe_addstr(stdscr, 1, 1, "Page ", _pair(C_DIM))
-            _safe_addstr(stdscr, 1, 6, _truncate(dots, max(0, width - 30)), _pair(C_ACCENT) | curses.A_BOLD)
+            # Info line: the tab strip on the left, brightness gauge on the right.
             brightness = self.api.get_brightness(self.deck_id)
-            gauge = f"☀ {brightness:3d}% " + _bar(brightness, 14)
-            _safe_addstr(stdscr, 1, max(20, width - len(gauge) - 1), gauge, _pair(C_BRIGHT) | curses.A_BOLD)
+            gauge = f"☀ {brightness:3d}% " + _bar(brightness, 12)
+            gauge_x = max(20, width - len(gauge) - 1)
+            _safe_addstr(stdscr, 1, gauge_x, gauge, _pair(C_BRIGHT) | curses.A_BOLD)
+            self._render_tabs(stdscr, 1, 1, gauge_x - 2)
         else:
             _safe_addstr(stdscr, 0, 15, "· waiting for a device", _pair(C_HEADER))
         _safe_addstr(stdscr, 2, 0, "─" * (width - 1), _pair(C_DIM))
+
+    def _render_tabs(self, stdscr, y: int, left: int, width: int) -> None:
+        tabs = self._tabs()
+        if not tabs or width < 6:
+            return
+        current = self._page()
+        ids = [tab[0] for tab in tabs]
+        active = ids.index(current) if current in ids else 0
+
+        # Each tab renders as " glyph label "; auto tabs carry a ⟳ marker. Keep a
+        # horizontal window around the active tab so long strips stay readable.
+        labels = [(f" ⟳{label} " if is_auto else f" {label} ") for _id, label, is_auto in tabs]
+        start = 0
+        while sum(len(labels[i]) for i in range(start, active + 1)) > width - 2 and start < active:
+            start += 1
+
+        x = left
+        if start > 0:
+            _safe_addstr(stdscr, y, x, "‹", _pair(C_DIM))
+            x += 2
+        prev_auto = False
+        for index in range(start, len(tabs)):
+            _id, _label, is_auto = tabs[index]
+            cap = labels[index]
+            if is_auto and not prev_auto and index > start:
+                _safe_addstr(stdscr, y, x, "│", _pair(C_DIM))  # divider before the Auto group
+                x += 2
+            prev_auto = is_auto
+            if x + len(cap) > left + width - 1:
+                _safe_addstr(stdscr, y, x, "›", _pair(C_DIM))
+                break
+            if index == active:
+                attr = _pair(C_KEYCAP) | curses.A_BOLD
+            else:
+                attr = (_pair(C_PAGE) if is_auto else _pair(C_ACCENT)) | curses.A_BOLD
+            _safe_addstr(stdscr, y, x, cap, attr)
+            x += len(cap)
 
     def _render_waiting(self, stdscr, top: int, width: int, height: int) -> None:
         lines = ["", "◷  No Stream Deck connected", "", "Plug one in — it will appear automatically.", ""]
@@ -464,7 +553,7 @@ class TextUI:
         if rows == 0 or cols == 0 or height < 3:
             return
         tile_w = max(9, width // cols)
-        tile_h = max(3, min(6, height // rows))
+        tile_h = max(3, min(7, height // rows))
         used_w = tile_w * cols
         used_h = tile_h * rows
         offset_x = left + max(0, (width - used_w) // 2)
@@ -482,8 +571,13 @@ class TextUI:
         assert deck_id is not None  # nosec - tiles are only drawn with a deck selected
         if w < 4 or h < 2:
             return
-        glyph, color, label = classify_button(self.api, deck_id, self._page(), index)
-        empty = not glyph and not label
+        page = self._page()
+        glyph, color, label = classify_button(self.api, deck_id, page, index)
+        # Prefer the button's own text (wrapped to fill the tile), falling back to
+        # the action descriptor for keys that have no label of their own.
+        text = self.api.get_button_text(deck_id, page, index).strip()
+        content = text or label
+        empty = not glyph and not content
 
         if selected:
             for row in range(1, h - 1):
@@ -495,13 +589,17 @@ class TextUI:
             content_attr = _pair(C_DIM) if empty else _pair(color) | curses.A_BOLD
 
         _draw_box(stdscr, y, x, w, h, border_attr, heavy=selected)
+        # Index in the top-left corner, the action glyph in the top-right; this
+        # frees the whole interior for the wrapped text content.
         _safe_addstr(stdscr, y, x + 1, str(index + 1), border_attr)
+        if glyph:
+            _safe_addstr(stdscr, y, x + w - 2, glyph, border_attr)
 
-        mid = y + h // 2
-        if h >= 5 and glyph:
-            _safe_addstr(stdscr, mid - 1, x + 1, glyph.center(w - 2), content_attr)
-        shown = label or ("·" if empty else glyph)
-        _safe_addstr(stdscr, mid, x + 1, _truncate(shown, w - 2).center(w - 2), content_attr)
+        inner_w = w - 2
+        lines = wrap_label(content, inner_w, h - 2) if content else (["·"] if empty else [])
+        start_row = y + 1 + max(0, (h - 2 - len(lines)) // 2)
+        for offset, line in enumerate(lines):
+            _safe_addstr(stdscr, start_row + offset, x + 1, line.center(inner_w), content_attr)
 
     def _render_detail(self, stdscr, top: int, left: int, width: int, height: int) -> None:
         deck_id = self.deck_id
@@ -549,13 +647,13 @@ class TextUI:
         y = height - 1
         _fill_row(stdscr, y, width, _pair(C_FOOTER))
         hints = [
+            ("Tab", "tab"),
+            ("⇧Tab", "back"),
             ("↑↓←→", "move"),
-            ("[ ]", "page"),
-            ("Tab", "deck"),
-            ("+ -", "bright"),
             ("↵", "edit"),
             ("x", "clear"),
-            ("a d", "page±"),
+            ("a d", "tab±"),
+            ("+ -", "bright"),
             ("?", "help"),
             ("q", "quit"),
         ]
@@ -618,13 +716,14 @@ class TextUI:
         entries = [
             ("Navigation", ""),
             ("↑ ↓ ← →  /  h j k l", "move between keys"),
-            ("[  ]   or  , .", "previous / next page"),
-            ("Tab", "switch to the next deck"),
+            ("Tab  /  Shift+Tab", "next / previous tab"),
+            ("[  ]   or  , .", "previous / next tab"),
+            ("`  (backtick)", "switch to the next deck"),
             ("", ""),
             ("Actions", ""),
             ("Enter  /  e", "edit the selected key"),
             ("x", "clear the selected key"),
-            ("a  /  d", "add / delete a page"),
+            ("a  /  d", "add / delete a page/tab"),
             ("+  /  -", "brightness up / down"),
             ("", ""),
             ("Editor", ""),
@@ -716,6 +815,27 @@ def _truncate(text: str, width: int) -> str:
     if width == 1:
         return "…"
     return text[: width - 1] + "…"
+
+
+def wrap_label(text: str, width: int, max_lines: int) -> List[str]:
+    """Wraps a key's text to fit a tile, honouring any explicit newlines.
+
+    Returns at most ``max_lines`` lines, each no wider than ``width``; the last
+    line is ellipsised when the content does not fit, so a key shows as much of
+    its text as the tile allows.
+    """
+    if width <= 0 or max_lines <= 0:
+        return []
+    lines: List[str] = []
+    for paragraph in text.split("\n"):
+        wrapped = textwrap.wrap(paragraph, width) if paragraph.strip() else [""]
+        lines.extend(wrapped)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        # Mark that the text was clipped so the user knows there is more.
+        last = lines[-1]
+        lines[-1] = last[: width - 1] + "…" if len(last) >= width else (last + "…")[:width]
+    return lines
 
 
 def _fill_row(stdscr, y: int, width: int, attr: int) -> None:

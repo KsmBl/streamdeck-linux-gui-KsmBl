@@ -75,6 +75,34 @@ def test_attached_signal_delivers_from_a_background_thread():
     assert ui.deck_id == "NEWDECK"
 
 
+def test_tabs_list_pages_then_auto_pages():
+    api = _api()
+    auto = api.add_auto_page(STREAMDECK_SERIAL, "firefox")
+    ui = tui.TextUI(api)
+    ui.deck_id = STREAMDECK_SERIAL
+    tabs = ui._tabs()
+    # Normal pages first, numbered "1", "2"; then the auto page, flagged is_auto.
+    assert [(p, label) for p, label, _is_auto in tabs[:2]] == [(0, "1"), (1, "2")]
+    assert (auto, "firefox", True) in tabs
+
+
+def test_change_tab_cycles_onto_an_auto_page():
+    api = _api()
+    auto = api.add_auto_page(STREAMDECK_SERIAL, "firefox")
+    ui = tui.TextUI(api)
+    ui.deck_id = STREAMDECK_SERIAL
+    api.set_page(STREAMDECK_SERIAL, 1)  # the last normal page
+    ui._change_tab(1)  # advances onto the Auto tab
+    assert api.get_page(STREAMDECK_SERIAL) == auto
+
+
+def test_wrap_label_keeps_words_and_newlines():
+    assert tui.wrap_label("Mute the mic", 6, 3) == ["Mute", "the", "mic"]
+    assert tui.wrap_label("Hi\nthere", 10, 3) == ["Hi", "there"]
+    # Overflowing content is clipped to max_lines with an ellipsis on the last.
+    assert tui.wrap_label("one two three four", 4, 2) == ["one", "two…"]
+
+
 def test_change_page_skips_when_single_page():
     api = _api()
     ui = tui.TextUI(api)
