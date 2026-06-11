@@ -1,3 +1,5 @@
+import threading
+
 from streamdeck_ui import tui
 from tests.common import STREAMDECK_SERIAL, create_test_api_server
 
@@ -8,17 +10,21 @@ def _api():
     return api
 
 
-def test_button_summary_prefers_live_then_text_then_placeholder():
+def test_classify_button_picks_glyph_colour_and_label():
     api = _api()
-    # Empty button shows a placeholder.
+    # An empty button has no glyph and no label.
     api.set_button_text(STREAMDECK_SERIAL, 0, 0, "")
-    assert tui.button_summary(api, STREAMDECK_SERIAL, 0, 0) == "·"
-    # Text wins when present.
+    glyph, color, label = tui.classify_button(api, STREAMDECK_SERIAL, 0, 0)
+    assert (glyph, color, label) == ("", tui.C_DIM, "")
+    # A command tile is green and shows its text.
     api.set_button_text(STREAMDECK_SERIAL, 0, 0, "Mute\nmic")
-    assert tui.button_summary(api, STREAMDECK_SERIAL, 0, 0) == "Mute"
-    # A live source takes precedence over the text.
+    api.set_button_command(STREAMDECK_SERIAL, 0, 0, "pactl set-sink-mute 0 toggle")
+    glyph, color, label = tui.classify_button(api, STREAMDECK_SERIAL, 0, 0)
+    assert color == tui.C_CMD and label == "Mute"
+    # A live source takes precedence and tints the tile as a live source.
     api.set_button_live_source(STREAMDECK_SERIAL, 0, 0, "clock")
-    assert tui.button_summary(api, STREAMDECK_SERIAL, 0, 0) == "~clock"
+    glyph, color, label = tui.classify_button(api, STREAMDECK_SERIAL, 0, 0)
+    assert color == tui.C_LIVE and glyph == "◷"
 
 
 def test_deck_grid_matches_layout():
@@ -47,6 +53,26 @@ def test_keypress_switches_page():
     ui.deck_id = STREAMDECK_SERIAL
     ui.on_keypress(STREAMDECK_SERIAL, 0, True)
     assert api.get_page(STREAMDECK_SERIAL) == 1
+
+
+def test_attached_signal_delivers_from_a_background_thread():
+    # The Stream Deck monitor emits ``attached`` from a worker thread; with no Qt
+    # event loop running, the text UI must still see it (direct connection),
+    # otherwise it sits forever on "Waiting for a Stream Deck".
+    api = create_test_api_server()
+    ui = tui.TextUI(api)
+    tui.connect_signals(api, ui)
+
+    def worker():
+        api.plugevents.attached.emit(
+            {"id": "x", "serial_number": "NEWDECK", "type": "Stream Deck Original", "layout": (3, 5)}
+        )
+
+    thread = threading.Thread(target=worker)
+    thread.start()
+    thread.join()
+
+    assert ui.deck_id == "NEWDECK"
 
 
 def test_change_page_skips_when_single_page():

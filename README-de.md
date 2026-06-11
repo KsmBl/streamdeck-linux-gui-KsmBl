@@ -85,12 +85,15 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   Desktop, eine SSH-Sitzung oder ein nacktes TTY) `streamdeck-tui` (oder `streamdeck --tui`)
   ausführen. Sie basiert auf dem Standardmodul `curses`, braucht also keine zusätzliche
   Abhängigkeit, und steuert das Deck wirklich: Tastendrücke führen ihre Befehle aus, wechseln
-  Seiten und aktualisieren Live-Kacheln. Die Auswahl bewegst du mit den Pfeiltasten (oder `hjkl`),
-  die Seite wechselst du mit `[` / `]`, das Deck mit `Tab`, die Helligkeit mit `+` / `-`, Seiten
-  fügst du mit `a` hinzu bzw. entfernst sie mit `d`, und mit `Enter` bearbeitest du Text, Befehl,
-  Tasten, Schreibtext, Seitenwechsel, Helligkeit und Live-Quelle der gewählten Taste. Mit `q`
-  beendest du sie. Sie teilt sich die Einzelinstanz-Sperre mit der GUI, also nur eines von beiden
-  starten.
+  Seiten und aktualisieren Live-Kacheln. Die Tasten werden als farbiges Kachelraster dargestellt —
+  **nach Aktion eingefärbt** (Befehle grün, Tastenkürzel blau, Schreibtext gelb, Seitenwechsel
+  magenta, Live-Kacheln cyan) mit Symbol und Beschriftung — dazu eine Kopfzeile mit Deck,
+  Seitenpunkten und Helligkeitsanzeige sowie ein Detailbereich für die gewählte Taste. Die Auswahl
+  bewegst du mit den Pfeiltasten (oder `hjkl`), die Seite wechselst du mit `[` / `]`, das Deck mit
+  `Tab`, die Helligkeit mit `+` / `-`, Seiten fügst du mit `a` hinzu bzw. entfernst sie mit `d`, mit
+  `Enter` bearbeitest du Text, Befehl, Tasten, Schreibtext, Seitenwechsel, Helligkeit und
+  Live-Quelle der gewählten Taste, `?` zeigt die Hilfe und `q` beendet sie. Sie teilt sich die
+  Einzelinstanz-Sperre mit der GUI, also nur eines von beiden starten.
 * **Installationsskript** — `scripts/install.sh` richtet alles in einer isolierten virtuellen
   Umgebung ein, inklusive Shell-Vervollständigungen (fish/bash/zsh) und optionalem Autostart-Dienst.
 

@@ -74,11 +74,14 @@ credit for the original work goes to its authors and contributors.
 * **Terminal (text) UI** — for machines with no graphical desktop (a headless server, an SSH
   session or a bare TTY), run `streamdeck-tui` (or `streamdeck --tui`). It is built on the standard
   library `curses`, so it needs no extra dependency, and it drives the deck for real: button
-  presses run their commands, switch pages and update live tiles. Move the selection with the arrow
-  keys (or `hjkl`), change page with `[` / `]`, switch deck with `Tab`, adjust brightness with
-  `+` / `-`, add/remove pages with `a` / `d`, and press `Enter` to edit the selected button's text,
-  command, keys, write, switch-page, brightness and live source. Press `q` to quit. It shares the
-  single-instance lock with the GUI, so run one or the other.
+  presses run their commands, switch pages and update live tiles. The keys are drawn as a colourful
+  grid of tiles — **colour-coded by action** (commands green, hotkeys blue, typed text amber, page
+  switches magenta, live tiles cyan) with a glyph and label — alongside a header showing the deck,
+  page dots and a brightness gauge, and a detail panel for the selected key. Move the selection with
+  the arrow keys (or `hjkl`), change page with `[` / `]`, switch deck with `Tab`, adjust brightness
+  with `+` / `-`, add/remove pages with `a` / `d`, press `Enter` to edit the selected key (text,
+  command, keys, write, switch-page, brightness and live source), `?` for help and `q` to quit. It
+  shares the single-instance lock with the GUI, so run one or the other.
 * **Installer** — `scripts/install.sh` sets everything up into an isolated virtual environment,
   with shell completions (fish/bash/zsh) and an optional autostart service.
 
