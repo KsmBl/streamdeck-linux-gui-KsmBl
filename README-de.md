@@ -71,14 +71,16 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   und mit **Reset to defaults** die ganze Gruppe verwerfen und die Standard-Vorlagen wiederherstellen.
   Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit `kdotool`); Compositoren, die
   das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland), lassen die Funktion einfach inaktiv.
-* **Snake-Minispiel** — ein **🐍 Snake**-Reiter; am Bildschirm mit den Pfeil-/WASD-Tasten spielbar (samt
-  Neustart-Taste). Es **läuft automatisch auf dem angeschlossenen Stream Deck**, solange der Reiter offen
-  ist: die rechten zwei Spalten werden zu einem Vier-Pfeile-Steuerkreuz, das Spiel startet beim ersten
-  Pfeildruck und startet wenige Sekunden nach einem Crash von selbst neu.
-* **Lights-Out-Puzzle** — ein **💡 Lights Out**-Reiter: Klicke auf eine Zelle, um sie und ihre vier
-  Nachbarn umzuschalten, und schalte alle Lichter aus (jedes Brett wird aus dem gelösten Zustand
-  verwürfelt und ist daher immer lösbar). Auch es **läuft automatisch auf dem angeschlossenen Stream
-  Deck**, solange der Reiter offen ist — die Tasten werden zum Spielfeld.
+* **Snake-Minispiel** — ein **🐍 Snake**-Reiter im Layout des Decks selbst (ein 4×8-Raster, dessen
+  rechteste Spalte die vier Richtungspfeile enthält). Es **läuft automatisch auf dem angeschlossenen
+  Stream Deck**, solange der Reiter offen ist, und sieht am Bildschirm wie auf den Tasten identisch aus:
+  die vier Pfeile stapeln sich in der rechtesten Spalte (eine Tastenbreite auf einem vierreihigen Deck),
+  das Spiel startet beim ersten Pfeildruck und startet wenige Sekunden nach einem Crash von selbst neu.
+  Am Bildschirm spielbar mit den Pfeilen oder den Pfeil-/WASD-Tasten.
+* **Lights-Out-Puzzle** — ein **💡 Lights Out**-Reiter mit demselben 4×8-Raster wie das Deck: Klicke auf
+  eine Zelle, um sie und ihre vier Nachbarn umzuschalten, und schalte alle Lichter aus (jedes Brett wird
+  aus dem gelösten Zustand verwürfelt und ist daher immer lösbar). Auch es **läuft automatisch auf dem
+  angeschlossenen Stream Deck**, solange der Reiter offen ist — die Tasten werden zum Spielfeld.
 * **Designs** — wählen Sie unter **View** ein Basis-Design: das **Default**-Design (Plattformlook),
   ein nostalgisches **Windows-XP**-Design (Luna) oder ein elegantes **Modern**-Design mit flachen,
   abgerundeten Bedienelementen und einem Indigo-Akzent (die Akzentfarbe ist über **View → Modern
@@ -126,7 +128,7 @@ scripts/install.sh            # mit --enable-service im Hintergrund beim Anmelde
 ```
 
 Es installiert die udev-Regeln, baut eine isolierte virtuelle Umgebung, verknüpft die Befehle
-`streamdeck`, `streamdeck-tui` und `streamdeckc` nach `~/.local/bin`, legt einen Anwendungsstarter an und installiert
+`streamdeck`, `streamdeck-tui` und `streamdeckc` nach `/usr/bin` (mit sudo; per `BIN_DIR=` änderbar), legt einen Anwendungsstarter an und installiert
 Shell-Vervollständigungen für die vorhandenen Shells. Mit `scripts/uninstall.sh` wird alles wieder
 entfernt (`--purge` löscht zusätzlich Ihre Konfiguration).
 

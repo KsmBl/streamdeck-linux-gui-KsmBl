@@ -62,13 +62,15 @@ credit for the original work goes to its authors and contributors.
   shared "Leave Auto" or media row — and **Reset to defaults** to wipe the group and restore the
   default presets. Detection works on X11, Sway and Hyprland (and KDE with `kdotool`);
   compositors that don't expose the focused window (e.g. GNOME Wayland) simply leave it inactive.
-* **Snake mini-game** — a **🐍 Snake** tab; play on screen with the arrow / WASD keys (and an on-screen
-  restart). It also **plays on the connected Stream Deck automatically** while the tab is open: the right
-  two columns become a four-arrow d-pad, the game starts when you press an arrow, and it restarts itself a
-  few seconds after a crash.
-* **Lights Out puzzle** — a **💡 Lights Out** tab: click a cell to toggle it and its four neighbours and
-  turn every light off (each board is dealt by scrambling from solved, so it is always solvable). It too
-  **plays on the connected Stream Deck automatically** while the tab is open — the keys become the board.
+* **Snake mini-game** — a **🐍 Snake** tab laid out like the deck itself (a 4×8 grid whose rightmost
+  column holds the four direction arrows). It also **plays on the connected Stream Deck automatically**
+  while the tab is open, looking identical on screen and on the keys: the four arrows stack in the
+  rightmost column (one block wide on a four-row deck), the game starts when you press an arrow, and it
+  restarts itself a few seconds after a crash. Play on screen with the arrows or the arrow / WASD keys.
+* **Lights Out puzzle** — a **💡 Lights Out** tab with the same 4×8 grid as the deck: click a cell to
+  toggle it and its four neighbours and turn every light off (each board is dealt by scrambling from
+  solved, so it is always solvable). It too **plays on the connected Stream Deck automatically** while the
+  tab is open — the keys become the board.
 * **Themes** — pick a base look under **View**: the **Default** (platform) theme, a nostalgic
   **Windows XP** (Luna) theme, or a sleek **Modern** theme with flat rounded controls and an indigo
   accent (the accent colour is customisable via **View → Modern Accent Colour…**). **Dark Mode** is a
@@ -113,8 +115,8 @@ scripts/install.sh            # add --enable-service to start in the background 
 ```
 
 It installs the udev rules, builds an isolated virtual environment, links the `streamdeck`,
-`streamdeck-tui` and `streamdeckc` commands into `~/.local/bin`, adds an application launcher and installs shell
-completions for the shells you have. Remove everything again with `scripts/uninstall.sh`
+`streamdeck-tui` and `streamdeckc` commands into `/usr/bin` (using sudo; override with `BIN_DIR=`), adds an
+application launcher and installs shell completions for the shells you have. Remove everything again with `scripts/uninstall.sh`
 (`--purge` also deletes your configuration).
 
 Distribution-specific notes from upstream still apply — see the

@@ -8,13 +8,14 @@ from tests.common import STREAMDECK_SERIAL
 def test_lights_out_press_toggles_cross(qtbot):
     game = gui.LightsOutGame()
     qtbot.addWidget(game)
+    w, h = game.model.width, game.model.height
     # A known board with a single far corner lit (so it is not already solved,
-    # which would make clicking a no-op), then click the centre cell.
-    game.model.grid = [[False] * game.SIZE for _ in range(game.SIZE)]
-    game.model.grid[4][4] = True
-    game._press(2, 2)
-    lit = {(x, y) for y in range(game.SIZE) for x in range(game.SIZE) if game.model.is_lit(x, y)}
-    assert {(2, 2), (1, 2), (3, 2), (2, 1), (2, 3)} <= lit
+    # which would make clicking a no-op), then click an interior cell.
+    game.model.grid = [[False] * w for _ in range(h)]
+    game.model.grid[h - 1][w - 1] = True
+    game._press(2, 1)
+    lit = {(x, y) for y in range(h) for x in range(w) if game.model.is_lit(x, y)}
+    assert {(2, 1), (1, 1), (3, 1), (2, 0), (2, 2)} <= lit
 
 
 @pytest.mark.serial
@@ -30,7 +31,7 @@ def test_lights_out_new_game_resets_moves(qtbot):
 def test_lights_out_solved_status(qtbot):
     game = gui.LightsOutGame()
     qtbot.addWidget(game)
-    game.model.grid = [[False] * game.SIZE for _ in range(game.SIZE)]
+    game.model.grid = [[False] * game.model.width for _ in range(game.model.height)]
     game._render()
     assert "Solved" in game._status.text()
 

@@ -2743,18 +2743,25 @@ class AutoPagePanel(QWidget):
 
 
 class SnakeGame(QWidget):
-    """A self-contained Snake mini-game in its own tab. The grid is the
-    playfield; the rightmost column holds the direction controls and a restart
-    button. Play with the on-screen controls or the arrow / WASD keys."""
+    """A self-contained Snake mini-game in its own tab, laid out like the
+    Stream Deck it mirrors: a 4x8 grid whose rightmost column is a stack of the
+    four direction arrows and whose remaining columns are the playfield. Play
+    with the on-screen arrows or the arrow / WASD keys."""
 
-    ROWS = 5
+    ROWS = 4
     COLS = 8  # the last column is the control column; the rest is playfield
 
-    _EMPTY = "#15161b"
+    # The same palette the on-deck game uses, so the two look identical.
+    _EMPTY = "#121318"
     _BODY = "#3aa657"
     _HEAD = "#7cfc8a"
     _FOOD = "#e05561"
+    _CONTROL_BG = "#282a34"
+    _ARROW = "#cdd2e0"
     _DELTAS = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}
+    _ARROWS = {"up": "▲", "down": "▼", "left": "◀", "right": "▶"}
+    # Top-to-bottom order of the arrows stacked in the rightmost column.
+    _CONTROL_ORDER = ("up", "left", "right", "down")
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -2775,24 +2782,25 @@ class SnakeGame(QWidget):
         outer.addStretch(1)
 
         self._cells: Dict[Tuple[int, int], QToolButton] = {}
-        for y in range(self._height):
-            for x in range(self._width):
+        self._controls: Dict[Tuple[int, int], str] = {}
+        for y in range(self.ROWS):
+            for x in range(self.COLS):
                 cell = QToolButton(board)
-                cell.setEnabled(False)
                 cell.setFixedSize(QSize(54, 54))
+                cell.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                if x == self.COLS - 1 and y < len(self._CONTROL_ORDER):
+                    action = self._CONTROL_ORDER[y]
+                    self._controls[(x, y)] = action
+                    cell.setText(self._ARROWS[action])
+                    cell.clicked.connect(partial(self._control, action))
+                    cell.setStyleSheet(
+                        f"background-color: {self._CONTROL_BG}; color: {self._ARROW}; "
+                        "border: 1px solid #2a2c34; border-radius: 6px; font-size: 20px;"
+                    )
+                else:
+                    cell.setEnabled(False)  # a display-only playfield tile
                 grid.addWidget(cell, y, x)
                 self._cells[(x, y)] = cell
-
-        for row, (label, action) in enumerate(
-            [("▲", "up"), ("▼", "down"), ("◀", "left"), ("▶", "right"), ("⟳", "restart")]
-        ):
-            if row >= self.ROWS:
-                break
-            button = QPushButton(label, board)
-            button.setFixedSize(QSize(54, 54))
-            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            button.clicked.connect(partial(self._control, action))
-            grid.addWidget(button, row, self.COLS - 1)
 
         self._timer = QTimer(self)
         self._timer.setInterval(180)
@@ -2806,16 +2814,18 @@ class SnakeGame(QWidget):
 
     def _reset(self) -> None:
         self._dead_timer.stop()
-        cx, cy = self._width // 2, self._height // 2
-        # The snake is a deque with the tail at index 0 and the head at index -1.
-        self._snake: "deque[Tuple[int, int]]" = deque([(cx - 2, cy), (cx - 1, cy), (cx, cy)])
+        cy = self._height // 2
+        # The snake is a deque with the tail at index 0 and the head at index -1;
+        # it starts flush against the left wall, heading right.
+        length = max(2, min(3, self._width - 1))
+        self._snake: "deque[Tuple[int, int]]" = deque((x, cy) for x in range(length))
         self._dir = (1, 0)
         self._next_dir = (1, 0)
         self._alive = True
         self._score = 0
         self._place_food()
         self._render()
-        self._status.setText("Snake — press an arrow (or a control) to start.  Score: 0")
+        self._status.setText("Snake — press an arrow to start.  Score: 0")
 
     def _place_food(self) -> None:
         free = [(x, y) for x in range(self._width) for y in range(self._height) if (x, y) not in self._snake]
@@ -2870,12 +2880,14 @@ class SnakeGame(QWidget):
         self._timer.stop()
         self._dead_timer.start()  # auto-restart after a few seconds
         prefix = "You win! " if win else "Game over! "
-        self._status.setText(f"{prefix}Score: {self._score}  —  restarting in 3s (or press ⟳)")
+        self._status.setText(f"{prefix}Score: {self._score}  —  restarting in 3s")
 
     def _render(self) -> None:
         head = self._snake[-1]
         body = set(self._snake)
         for (x, y), cell in self._cells.items():
+            if (x, y) in self._controls:
+                continue  # the arrow tiles keep their fixed look
             if (x, y) == head:
                 color = self._HEAD
             elif (x, y) in body:
@@ -2927,7 +2939,6 @@ def _start_deck_game(game_cls: Type["DeckGame"], min_cols: int = 2, min_rows: in
     """Starts an on-deck mini-game on the connected deck if one is available and
     big enough, so a game tab plays on the keys automatically. Quietly does
     nothing when there is no usable deck or a game is already running."""
-    global deck_game
     if deck_game is not None or main_window is None:
         return
     deck_id = _deck()
@@ -2980,7 +2991,10 @@ class DeckSnake(DeckGame):
         self.deck_id = deck_id
         self.display = api.display_handlers[deck_id]
         self.rows, self.cols = api.get_deck_layout(deck_id)
-        self.play_w = max(self.cols - 2, 2)  # the right two columns hold the d-pad
+        # A four-row (or taller) deck stacks all four arrows in the single
+        # rightmost column; smaller decks need the right two columns.
+        self._single_column = self.rows >= 4
+        self.play_w = max(self.cols - (1 if self._single_column else 2), 2)
         self.play_h = self.rows
         self.model = SnakeModel(self.play_w, self.play_h)
         self._controls = self._build_controls()
@@ -2996,11 +3010,14 @@ class DeckSnake(DeckGame):
         self._dead_timer.timeout.connect(self._revive)
 
     def _build_controls(self) -> Dict[int, str]:
-        """Lays out a four-arrow d-pad in the rightmost two columns. On decks with
-        three or more rows it is a vertically centred plus; on a two-row deck the
-        arrows fall back to a 2x2 cluster."""
+        """Lays out the four-arrow controls. On a four-row (or taller) deck they
+        stack in the single rightmost column (up, left, right, down); on a
+        three-row deck they form a centred plus across the right two columns; on
+        a two-row deck they fall back to a 2x2 cluster."""
         right = self.cols - 1
         left = self.cols - 2
+        if self._single_column:
+            return {row * self.cols + right: action for row, action in enumerate(("up", "left", "right", "down"))}
         if self.rows >= 3:
             mid = self.rows // 2
             return {
@@ -3110,16 +3127,20 @@ class DeckSnake(DeckGame):
 
 
 class LightsOutGame(QWidget):
-    """A self-contained Lights Out puzzle in its own tab. Click a cell to toggle
-    it and its four orthogonal neighbours; turn every light off to win."""
+    """A self-contained Lights Out puzzle in its own tab, laid out like the
+    Stream Deck it mirrors: a 4x8 grid of cells. Click a cell to toggle it and
+    its four orthogonal neighbours; turn every light off to win."""
 
-    SIZE = 5
-    _OFF = "#15161b"
+    ROWS = 4
+    COLS = 8
+    # The same palette the on-deck game uses, so the two look identical.
+    _OFF = "#121318"
     _ON = "#f2c14e"
+    _SOLVED = "#7cfc8a"
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.model = LightsOutModel(self.SIZE, self.SIZE)
+        self.model = LightsOutModel(self.COLS, self.ROWS)
 
         outer = QVBoxLayout(self)
         top_row = QHBoxLayout()
@@ -3138,10 +3159,10 @@ class LightsOutGame(QWidget):
         outer.addStretch(1)
 
         self._cells: Dict[Tuple[int, int], QToolButton] = {}
-        for y in range(self.SIZE):
-            for x in range(self.SIZE):
+        for y in range(self.ROWS):
+            for x in range(self.COLS):
                 cell = QToolButton(board)
-                cell.setFixedSize(QSize(60, 60))
+                cell.setFixedSize(QSize(54, 54))
                 cell.setFocusPolicy(Qt.FocusPolicy.NoFocus)
                 cell.clicked.connect(partial(self._press, x, y))
                 grid.addWidget(cell, y, x)
@@ -3159,10 +3180,14 @@ class LightsOutGame(QWidget):
         self._render()
 
     def _render(self) -> None:
+        solved = self.model.is_solved()
         for (x, y), cell in self._cells.items():
-            color = self._ON if self.model.is_lit(x, y) else self._OFF
+            if solved:
+                color = self._SOLVED
+            else:
+                color = self._ON if self.model.is_lit(x, y) else self._OFF
             cell.setStyleSheet(f"background-color: {color}; border: 1px solid #2a2c34; border-radius: 8px;")
-        if self.model.is_solved():
+        if solved:
             self._status.setText(f"Solved in {self.model.moves} moves!  —  press New game to play again.")
         else:
             lit = sum(1 for y in range(self.model.height) for x in range(self.model.width) if self.model.is_lit(x, y))
