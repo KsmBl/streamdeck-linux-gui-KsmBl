@@ -60,6 +60,25 @@ def test_deck_lights_out_takes_over_and_restores(api_and_window, mocker):
 
 
 @pytest.mark.serial
+def test_lights_out_window_mirrors_deck(api_and_window, qtbot, mocker):
+    """The on-screen board reflects the on-deck puzzle's live state."""
+    main_window, api = api_and_window
+    mocker.patch.object(api, "get_deck_layout", return_value=(4, 8))
+    try:
+        deck = gui.DeckLightsOut(main_window.ui, STREAMDECK_SERIAL)
+        deck.start()
+        window = gui.LightsOutGame()
+        qtbot.addWidget(window)
+        window._deck = deck
+        deck.mirror = window._render_from_deck
+        deck.model.grid = [[False] * deck.model.width for _ in range(deck.model.height)]
+        deck.on_key(0)  # press cell (0,0); the window mirrors the lit cross
+        assert gui.LightsOutGame._ON in window._cells[(0, 0)].styleSheet()
+    finally:
+        gui.deck_game = None
+
+
+@pytest.mark.serial
 def test_handle_keypress_routes_to_lights_out(api_and_window, mocker):
     main_window, api = api_and_window
     mocker.patch.object(api, "get_deck_layout", return_value=(3, 5))

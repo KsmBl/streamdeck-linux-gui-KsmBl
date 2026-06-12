@@ -141,6 +141,11 @@ class DisplayGrid:
                     filter[0].active = active
 
     def synchronize(self):
+        # If the render loop is not running (e.g. an on-deck game paused it with
+        # stop()), nothing will ever signal the sync event, so waiting would
+        # block the caller forever. There is nothing to wait for, so return.
+        if self.pipeline_thread is None:
+            return
         # Wait until the next cycle is complete.
         # To *guarantee* that you have one complete pass, two waits are needed.
         # The first gets you to the end of one cycle (you could have called it

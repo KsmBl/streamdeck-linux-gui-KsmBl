@@ -106,6 +106,43 @@ def test_deck_snake_starts_on_press_and_auto_restarts(api_and_window, mocker):
 
 
 @pytest.mark.serial
+def test_focus_change_leaves_game_deck_alone(api_and_window, mocker):
+    """Switching applications while a game owns the deck must not switch its page
+    (which would block on synchronize() and freeze the deck)."""
+    main_window, api = api_and_window
+    mocker.patch.object(api, "get_deck_layout", return_value=(4, 8))
+    api.add_auto_page(STREAMDECK_SERIAL, "firefox")
+    auto_pages = api.get_auto_pages(STREAMDECK_SERIAL)
+    api.set_page(STREAMDECK_SERIAL, auto_pages[0])  # sit inside the auto group
+    switch_spy = mocker.patch("streamdeck_ui.gui._switch_to_page")
+    try:
+        gui.DeckSnake(main_window.ui, STREAMDECK_SERIAL).start()
+        gui.handle_focus_changed(main_window.ui, "firefox")
+        switch_spy.assert_not_called()
+    finally:
+        gui.deck_game = None
+
+
+@pytest.mark.serial
+def test_snake_window_mirrors_deck(api_and_window, qtbot, mocker):
+    """The on-screen board reflects the on-deck game's live state."""
+    main_window, api = api_and_window
+    mocker.patch.object(api, "get_deck_layout", return_value=(4, 8))
+    try:
+        deck = gui.DeckSnake(main_window.ui, STREAMDECK_SERIAL)
+        deck.start()
+        window = gui.SnakeGame()
+        qtbot.addWidget(window)
+        window._deck = deck
+        deck.mirror = window._render_from_deck
+        deck.press_action("down")  # a move on the deck refreshes the window
+        assert gui.SnakeGame._HEAD in window._cells[deck.model.head].styleSheet()
+        assert "Stream Deck" in window._status.text()
+    finally:
+        gui.deck_game = None
+
+
+@pytest.mark.serial
 def test_handle_keypress_routes_to_deck_game(api_and_window, mocker):
     main_window, api = api_and_window
     mocker.patch.object(api, "get_deck_layout", return_value=(3, 5))

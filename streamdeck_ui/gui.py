@@ -2223,6 +2223,10 @@ def handle_focus_changed(ui, app: str) -> None:
     _last_focused_app = app
     for deck_id in list(api.decks_by_serial.keys()):
         try:
+            # A mini-game owns this deck and has paused its render loop; switching
+            # its page would block on synchronize(), so leave the game running.
+            if deck_game is not None and deck_game.deck_id == deck_id:
+                continue
             auto_pages = api.get_auto_pages(deck_id)
             # Only follow the focus while the deck is in the Auto group.
             if not auto_pages or api.get_page(deck_id) not in auto_pages:
@@ -2810,6 +2814,9 @@ class SnakeGame(QWidget):
         self._dead_timer.setSingleShot(True)
         self._dead_timer.setInterval(3000)
         self._dead_timer.timeout.connect(self._reset)
+        # While set, the board mirrors this on-deck game instead of running its
+        # own; the local timers are paused and the arrows steer the deck.
+        self._deck: Optional["DeckSnake"] = None
         self._reset()
 
     def _reset(self) -> None:
@@ -2832,6 +2839,16 @@ class SnakeGame(QWidget):
         self._food = random.choice(free) if free else None
 
     def _control(self, action: str) -> None:
+        # While mirroring, the on-screen arrows steer the game running on the
+        # deck so the two stay in sync.
+        if self._deck is not None and deck_game is self._deck:
+            if action == "restart":
+                self._deck.restart()
+            else:
+                self._deck.press_action(action)
+            self.setFocus()
+            return
+        self._deck = None  # the deck went away; fall back to the local game
         if action == "restart":
             self._reset()
         else:
@@ -2898,6 +2915,31 @@ class SnakeGame(QWidget):
                 color = self._EMPTY
             cell.setStyleSheet(f"background-color: {color}; border: 1px solid #2a2c34; border-radius: 6px;")
 
+    def _render_from_deck(self) -> None:
+        """Paints the board from the on-deck game's state, so the screen mirrors
+        what is shown on the Stream Deck."""
+        deck = self._deck
+        if deck is None:
+            return
+        head = deck.model.head
+        body = set(deck.model.snake)
+        for (x, y), cell in self._cells.items():
+            if (x, y) in self._controls:
+                continue
+            if (x, y) == head:
+                color = self._HEAD
+            elif (x, y) in body:
+                color = self._BODY
+            elif (x, y) == deck.model.food:
+                color = self._FOOD
+            else:
+                color = self._EMPTY
+            cell.setStyleSheet(f"background-color: {color}; border: 1px solid #2a2c34; border-radius: 6px;")
+        if not deck.model.alive:
+            self._status.setText(f"On the Stream Deck — game over! Score: {deck.model.score}  —  restarting in 3s")
+        else:
+            self._status.setText(f"Playing on the Stream Deck — Score: {deck.model.score}")
+
     def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt override
         mapping = {
             Qt.Key.Key_Up: "up",
@@ -2910,10 +2952,14 @@ class SnakeGame(QWidget):
             Qt.Key.Key_D: "right",
         }
         action = mapping.get(event.key())
+        if self._deck is not None and deck_game is self._deck:
+            alive = self._deck.model.alive
+        else:
+            alive = self._alive
         if action is not None:
             self._control(action)
             event.accept()
-        elif event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter) and not self._alive:
+        elif event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter) and not alive:
             self._control("restart")
             event.accept()
         else:
@@ -2924,40 +2970,59 @@ class SnakeGame(QWidget):
         self.setFocus()
         # Opening the tab automatically takes over a connected deck so you can
         # play on its keys; Snake needs the right two columns for the d-pad.
-        _start_deck_game(DeckSnake, min_cols=4, min_rows=2)
+        game = _start_deck_game(DeckSnake, min_cols=4, min_rows=2)
+        if isinstance(game, DeckSnake):
+            # Mirror the on-deck game: pause the local one and follow the deck.
+            self._deck = game
+            game.mirror = self._render_from_deck
+            self._timer.stop()
+            self._dead_timer.stop()
+            self._render_from_deck()
+        else:
+            self._deck = None
+            self._reset()  # no deck to mirror; play locally from a fresh board
 
     def hideEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().hideEvent(event)
         self._timer.stop()
         self._dead_timer.stop()
+        if self._deck is not None:
+            self._deck.mirror = None
+            self._deck = None
         # Leaving the tab returns the deck to its normal display.
         if deck_game is not None:
             deck_game.stop()
 
 
-def _start_deck_game(game_cls: Type["DeckGame"], min_cols: int = 2, min_rows: int = 2) -> None:
+def _start_deck_game(game_cls: Type["DeckGame"], min_cols: int = 2, min_rows: int = 2) -> Optional["DeckGame"]:
     """Starts an on-deck mini-game on the connected deck if one is available and
-    big enough, so a game tab plays on the keys automatically. Quietly does
-    nothing when there is no usable deck or a game is already running."""
+    big enough, so a game tab plays on the keys automatically, and returns the
+    running game (so the in-window board can mirror it). Returns ``None`` when
+    there is no usable deck or a game is already running."""
     if deck_game is not None or main_window is None:
-        return
+        return None
     deck_id = _deck()
     deck = api.decks_by_serial.get(deck_id) if deck_id is not None else None
     if deck_id is None or deck is None or not deck.is_visual():
-        return
+        return None
     rows, cols = api.get_deck_layout(deck_id)
     if cols < min_cols or rows < min_rows:
-        return
-    game_cls(main_window.ui, deck_id).start()
+        return None
+    game = game_cls(main_window.ui, deck_id)
+    game.start()
+    return game
 
 
 class DeckGame:
     """Common interface for a mini-game that takes over the physical deck.
 
     While one is active it owns ``deck_game``; ``handle_keypress`` routes key
-    presses to :meth:`on_key`, and the watcher stops it on detach or tab change."""
+    presses to :meth:`on_key`, and the watcher stops it on detach or tab change.
+    The in-window board can set ``mirror`` to a callback that is invoked after
+    every on-deck render, so the screen always shows the live game state."""
 
     deck_id: str
+    mirror: Optional[Callable[[], None]] = None
 
     def __init__(self, ui, deck_id: str) -> None:  # pragma: no cover - overridden
         self.deck_id = deck_id
@@ -3059,10 +3124,15 @@ class DeckSnake(DeckGame):
         action = self._controls.get(key)
         if action is None:
             return
-        self.model.set_direction(self._DELTAS[action])
         api.reset_dimmer(self.deck_id)
+        self.press_action(action)
+
+    def press_action(self, action: str) -> None:
+        """Steers the snake; the first arrow press starts the game. Shared by the
+        physical keys and the on-screen arrows that mirror this game."""
+        self.model.set_direction(self._DELTAS[action])
         if self.model.alive and not self.timer.isActive():
-            self.timer.start()  # the first arrow press starts the game
+            self.timer.start()
         self._render()
 
     def _tick(self) -> None:
@@ -3076,6 +3146,14 @@ class DeckSnake(DeckGame):
         self.model.reset()
         self._render()  # movement resumes when an arrow is pressed again
 
+    def restart(self) -> None:
+        """Deals a fresh board immediately (used by the mirroring on-screen
+        restart); movement resumes on the next arrow press."""
+        self._dead_timer.stop()
+        self.timer.stop()
+        self.model.reset()
+        self._render()
+
     def _render(self) -> None:
         try:
             head = self.model.head
@@ -3084,6 +3162,8 @@ class DeckSnake(DeckGame):
                 self.display.set_image(index, self._key_image(index, body, head))
         except Exception as error:  # noqa: BLE001 - rendering must never crash the game/UI
             print(f"Snake render error: {error}")
+        if self.mirror is not None:
+            self.mirror()  # keep the on-screen board in step with the deck
 
     def _key_image(self, index: int, body: set, head: Tuple[int, int]) -> Image.Image:
         if index in self._controls:
@@ -3167,13 +3247,24 @@ class LightsOutGame(QWidget):
                 cell.clicked.connect(partial(self._press, x, y))
                 grid.addWidget(cell, y, x)
                 self._cells[(x, y)] = cell
+        # While set, the board mirrors this on-deck game instead of its own.
+        self._deck: Optional["DeckLightsOut"] = None
         self._render()
 
     def _new_game(self) -> None:
+        if self._deck is not None and deck_game is self._deck:
+            self._deck.new_board()
+            return
+        self._deck = None
         self.model.reset()
         self._render()
 
     def _press(self, x: int, y: int) -> None:
+        # While mirroring, a click drives the deck so the two stay in sync.
+        if self._deck is not None and deck_game is self._deck:
+            self._deck.on_key(y * self._deck.cols + x)
+            return
+        self._deck = None
         if self.model.is_solved():
             return
         self.model.press(x, y)
@@ -3193,13 +3284,41 @@ class LightsOutGame(QWidget):
             lit = sum(1 for y in range(self.model.height) for x in range(self.model.width) if self.model.is_lit(x, y))
             self._status.setText(f"Lights Out — turn every light off.  Lit: {lit}   Moves: {self.model.moves}")
 
+    def _render_from_deck(self) -> None:
+        """Paints the board from the on-deck puzzle, mirroring the Stream Deck."""
+        deck = self._deck
+        if deck is None:
+            return
+        solved = deck.model.is_solved()
+        for (x, y), cell in self._cells.items():
+            if x < deck.model.width and y < deck.model.height:
+                color = self._SOLVED if solved else (self._ON if deck.model.is_lit(x, y) else self._OFF)
+            else:
+                color = self._OFF
+            cell.setStyleSheet(f"background-color: {color}; border: 1px solid #2a2c34; border-radius: 8px;")
+        if solved:
+            self._status.setText(f"Solved on the Stream Deck in {deck.model.moves} moves!")
+        else:
+            lit = sum(1 for y in range(deck.model.height) for x in range(deck.model.width) if deck.model.is_lit(x, y))
+            self._status.setText(f"Playing on the Stream Deck — Lit: {lit}   Moves: {deck.model.moves}")
+
     def showEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().showEvent(event)
         # Opening the tab automatically plays the puzzle on a connected deck.
-        _start_deck_game(DeckLightsOut, min_cols=2, min_rows=2)
+        game = _start_deck_game(DeckLightsOut, min_cols=2, min_rows=2)
+        if isinstance(game, DeckLightsOut):
+            self._deck = game
+            game.mirror = self._render_from_deck
+            self._render_from_deck()
+        else:
+            self._deck = None
+            self._new_game()  # no deck to mirror; play locally from a fresh board
 
     def hideEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().hideEvent(event)
+        if self._deck is not None:
+            self._deck.mirror = None
+            self._deck = None
         # Leaving the tab returns the deck to its normal display.
         if deck_game is not None:
             deck_game.stop()
@@ -3256,6 +3375,12 @@ class DeckLightsOut(DeckGame):
         if self.model.is_solved():
             self._solved_timer.start()
 
+    def new_board(self) -> None:
+        """Deals a fresh puzzle immediately (used by the mirroring New game)."""
+        self._solved_timer.stop()
+        self.model.reset()
+        self._render()
+
     def _deal_new(self) -> None:
         self.model.reset()
         self._render()
@@ -3272,6 +3397,8 @@ class DeckLightsOut(DeckGame):
                 self.display.set_image(index, Image.new("RGB", self.display.size, color))
         except Exception as error:  # noqa: BLE001 - rendering must never crash the game/UI
             print(f"Lights Out render error: {error}")
+        if self.mirror is not None:
+            self.mirror()  # keep the on-screen board in step with the deck
 
 
 def build_control_presets_menu(ui) -> None:
