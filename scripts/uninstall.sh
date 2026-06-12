@@ -9,6 +9,7 @@
 #
 # Environment overrides:
 #   PREFIX    Base prefix used at install time (default: ~/.local)
+#   BIN_DIR   Directory the commands were linked into (default: /usr/bin)
 
 set -euo pipefail
 
@@ -20,7 +21,7 @@ fi
 APP_NAME="streamdeck-ui"
 PREFIX="${PREFIX:-$HOME/.local}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/share/$APP_NAME}"
-BIN_DIR="$PREFIX/bin"
+BIN_DIR="${BIN_DIR:-/usr/bin}"
 DESKTOP_DIR="$PREFIX/share/applications"
 ICON_DIR="$PREFIX/share/icons/hicolor/512x512/apps"
 UDEV_RULES_DEST="/etc/udev/rules.d/60-streamdeck.rules"
@@ -32,7 +33,13 @@ systemctl --user daemon-reload 2>/dev/null || true
 pkill -f "$INSTALL_DIR/venv/bin/streamdeck" 2>/dev/null || true
 
 echo ">>> Removing executables and virtual environment ..."
-rm -f "$BIN_DIR/streamdeck" "$BIN_DIR/streamdeck-tui" "$BIN_DIR/streamdeckc"
+# A system directory such as /usr/bin needs root to remove the links from.
+if [ -w "$BIN_DIR" ]; then
+    SUDO=""
+else
+    SUDO="sudo"
+fi
+$SUDO rm -f "$BIN_DIR/streamdeck" "$BIN_DIR/streamdeck-tui" "$BIN_DIR/streamdeckc"
 rm -rf "$INSTALL_DIR"
 
 echo ">>> Removing application launcher and icon ..."

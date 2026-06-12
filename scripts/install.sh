@@ -3,8 +3,9 @@
 # Installs streamdeck-ui from this source checkout for the current user.
 #
 # It installs the package into a self-contained virtual environment, links the
-# `streamdeck` / `streamdeckc` commands into ~/.local/bin, installs the udev
-# rules required to talk to the device, and adds an application launcher entry.
+# `streamdeck`, `streamdeck-tui` and `streamdeckc` commands into /usr/bin (needs
+# sudo), installs the udev rules required to talk to the device, and adds an
+# application launcher entry.
 #
 # Usage: scripts/install.sh [--enable-service]
 #
@@ -12,8 +13,9 @@
 #                      the Stream Deck in the background on login.
 #
 # Environment overrides:
-#   PREFIX   Base prefix for executables / desktop files (default: ~/.local)
-#   PYTHON   Python interpreter to build the venv with     (default: python3)
+#   PREFIX   Base prefix for desktop files / icons          (default: ~/.local)
+#   BIN_DIR  Directory the commands are linked into          (default: /usr/bin)
+#   PYTHON   Python interpreter to build the venv with       (default: python3)
 
 set -euo pipefail
 
@@ -30,7 +32,7 @@ PYTHON="${PYTHON:-python3}"
 PREFIX="${PREFIX:-$HOME/.local}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/share/$APP_NAME}"
 VENV_DIR="$INSTALL_DIR/venv"
-BIN_DIR="$PREFIX/bin"
+BIN_DIR="${BIN_DIR:-/usr/bin}"
 DESKTOP_DIR="$PREFIX/share/applications"
 ICON_DIR="$PREFIX/share/icons/hicolor/512x512/apps"
 UDEV_RULES_SRC="$REPO_ROOT/udev/60-streamdeck.rules"
@@ -63,10 +65,18 @@ echo ">>> Installing the package and its dependencies (this can take a while)...
 "$VENV_DIR/bin/pip" install "$REPO_ROOT"
 
 echo ">>> Linking executables into $BIN_DIR ..."
-mkdir -p "$BIN_DIR"
-ln -sf "$VENV_DIR/bin/streamdeck" "$BIN_DIR/streamdeck"
-ln -sf "$VENV_DIR/bin/streamdeck-tui" "$BIN_DIR/streamdeck-tui"
-ln -sf "$VENV_DIR/bin/streamdeckc" "$BIN_DIR/streamdeckc"
+# A system directory such as /usr/bin needs root; a user-writable BIN_DIR
+# override (e.g. ~/.local/bin) does not.
+if [ -w "$BIN_DIR" ] || { [ ! -e "$BIN_DIR" ] && [ -w "$(dirname "$BIN_DIR")" ]; }; then
+    SUDO=""
+else
+    SUDO="sudo"
+    echo "    ($BIN_DIR is not writable; using sudo)"
+fi
+$SUDO mkdir -p "$BIN_DIR"
+$SUDO ln -sf "$VENV_DIR/bin/streamdeck" "$BIN_DIR/streamdeck"
+$SUDO ln -sf "$VENV_DIR/bin/streamdeck-tui" "$BIN_DIR/streamdeck-tui"
+$SUDO ln -sf "$VENV_DIR/bin/streamdeckc" "$BIN_DIR/streamdeckc"
 
 # --- desktop integration --------------------------------------------------
 echo ">>> Installing application icon and launcher ..."
