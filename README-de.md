@@ -71,11 +71,14 @@ Der Dank für die ursprüngliche Arbeit gebührt deren Autorinnen, Autoren und M
   und mit **Reset to defaults** die ganze Gruppe verwerfen und die Standard-Vorlagen wiederherstellen.
   Die Erkennung funktioniert unter X11, Sway und Hyprland (sowie KDE mit `kdotool`); Compositoren, die
   das fokussierte Fenster nicht preisgeben (z. B. GNOME Wayland), lassen die Funktion einfach inaktiv.
-* **Snake-Minispiel** — ein **🐍 Snake**-Reiter mit Spielfeld und Richtungstasten (samt Neustart) auf
-  der rechten Seite; spielbar über die Bildschirmtasten oder die Pfeil-/WASD-Tasten.
+* **Snake-Minispiel** — ein **🐍 Snake**-Reiter; am Bildschirm mit den Pfeil-/WASD-Tasten spielbar (samt
+  Neustart-Taste). Es **läuft automatisch auf dem angeschlossenen Stream Deck**, solange der Reiter offen
+  ist: die rechten zwei Spalten werden zu einem Vier-Pfeile-Steuerkreuz, das Spiel startet beim ersten
+  Pfeildruck und startet wenige Sekunden nach einem Crash von selbst neu.
 * **Lights-Out-Puzzle** — ein **💡 Lights Out**-Reiter: Klicke auf eine Zelle, um sie und ihre vier
-  Nachbarn umzuschalten, und schalte alle Lichter aus. Beide Spiele lassen sich auch **direkt auf dem
-  Stream Deck spielen** (über *Play on Stream Deck*) — die Tasten werden zum Spielfeld.
+  Nachbarn umzuschalten, und schalte alle Lichter aus (jedes Brett wird aus dem gelösten Zustand
+  verwürfelt und ist daher immer lösbar). Auch es **läuft automatisch auf dem angeschlossenen Stream
+  Deck**, solange der Reiter offen ist — die Tasten werden zum Spielfeld.
 * **Designs** — wählen Sie unter **View** ein Basis-Design: das **Default**-Design (Plattformlook),
   ein nostalgisches **Windows-XP**-Design (Luna) oder ein elegantes **Modern**-Design mit flachen,
   abgerundeten Bedienelementen und einem Indigo-Akzent (die Akzentfarbe ist über **View → Modern

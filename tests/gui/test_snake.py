@@ -41,6 +41,17 @@ def test_snake_dies_on_wall(qtbot):
 
 
 @pytest.mark.serial
+def test_snake_auto_restarts_after_game_over(qtbot):
+    game = gui.SnakeGame()
+    qtbot.addWidget(game)
+    game._control("right")
+    for _ in range(game._width + 2):
+        game._tick()
+    assert not game._alive
+    assert game._dead_timer.isActive()  # an automatic restart is scheduled
+
+
+@pytest.mark.serial
 def test_snake_restart_revives(qtbot):
     game = gui.SnakeGame()
     qtbot.addWidget(game)
@@ -61,14 +72,36 @@ def test_deck_snake_takes_over_and_restores(api_and_window, mocker):
         assert gui.deck_game is game
         handler.stop.assert_called()  # normal render loop paused
 
-        # The rightmost-column control keys turn the snake (relative).
-        game.on_key(0 * 5 + 4)  # top-right = turn left -> up
+        # The right two columns hold a four-arrow d-pad.
+        game.on_key(0 * 5 + 4)  # the "up" arrow
         assert game.model._pending == (0, -1)
 
         game.stop()
         assert gui.deck_game is None
         handler.start.assert_called()  # normal rendering resumed
     finally:
+        gui.deck_game = None
+
+
+@pytest.mark.serial
+def test_deck_snake_starts_on_press_and_auto_restarts(api_and_window, mocker):
+    main_window, api = api_and_window
+    mocker.patch.object(api, "get_deck_layout", return_value=(3, 5))
+    try:
+        game = gui.DeckSnake(main_window.ui, STREAMDECK_SERIAL)
+        game.start()
+        assert not game.timer.isActive()  # idle until an arrow is pressed
+        game.on_key(1 * 5 + 4)  # the "right" arrow starts the game
+        assert game.timer.isActive()
+        for _ in range(8):  # drive into the wall
+            game._tick()
+        assert not game.model.alive
+        assert game._dead_timer.isActive()  # a restart is scheduled
+        game._revive()
+        assert game.model.alive
+    finally:
+        if gui.deck_game is not None:
+            gui.deck_game.stop()
         gui.deck_game = None
 
 
@@ -80,7 +113,7 @@ def test_handle_keypress_routes_to_deck_game(api_and_window, mocker):
         game = gui.DeckSnake(main_window.ui, STREAMDECK_SERIAL)
         game.start()
         # A hardware key press is routed to the game, not to button actions.
-        gui.handle_keypress(main_window.ui, STREAMDECK_SERIAL, 1 * 5 + 4, True)  # turn right -> down
+        gui.handle_keypress(main_window.ui, STREAMDECK_SERIAL, 2 * 5 + 4, True)  # the "down" arrow
         assert game.model._pending == (0, 1)
     finally:
         if gui.deck_game is not None:

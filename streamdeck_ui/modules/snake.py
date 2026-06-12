@@ -22,8 +22,12 @@ class SnakeModel:
         self.reset()
 
     def reset(self) -> None:
-        cx, cy = self.width // 2, self.height // 2
-        self.snake: Deque[Cell] = deque([(cx - 2, cy), (cx - 1, cy), (cx, cy)])
+        cy = self.height // 2
+        # Lay the snake flush against the left wall, heading right, so it always
+        # fits on the board (even on a narrow on-deck playfield) with no
+        # off-board segments.
+        length = max(2, min(3, self.width - 1))
+        self.snake: Deque[Cell] = deque((x, cy) for x in range(length))
         self.heading: Cell = (1, 0)
         self._pending: Cell = (1, 0)
         self.alive = True

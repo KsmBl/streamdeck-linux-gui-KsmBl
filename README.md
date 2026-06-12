@@ -62,11 +62,13 @@ credit for the original work goes to its authors and contributors.
   shared "Leave Auto" or media row — and **Reset to defaults** to wipe the group and restore the
   default presets. Detection works on X11, Sway and Hyprland (and KDE with `kdotool`);
   compositors that don't expose the focused window (e.g. GNOME Wayland) simply leave it inactive.
-* **Snake mini-game** — a **🐍 Snake** tab with a playfield and direction controls (and a restart) down
-  the right-hand side; play with the on-screen controls or the arrow / WASD keys.
+* **Snake mini-game** — a **🐍 Snake** tab; play on screen with the arrow / WASD keys (and an on-screen
+  restart). It also **plays on the connected Stream Deck automatically** while the tab is open: the right
+  two columns become a four-arrow d-pad, the game starts when you press an arrow, and it restarts itself a
+  few seconds after a crash.
 * **Lights Out puzzle** — a **💡 Lights Out** tab: click a cell to toggle it and its four neighbours and
-  turn every light off. Both games can also be **played on the Stream Deck itself** via *Play on Stream
-  Deck* — the keys become the board.
+  turn every light off (each board is dealt by scrambling from solved, so it is always solvable). It too
+  **plays on the connected Stream Deck automatically** while the tab is open — the keys become the board.
 * **Themes** — pick a base look under **View**: the **Default** (platform) theme, a nostalgic
   **Windows XP** (Luna) theme, or a sleek **Modern** theme with flat rounded controls and an indigo
   accent (the accent colour is customisable via **View → Modern Accent Colour…**). **Dark Mode** is a

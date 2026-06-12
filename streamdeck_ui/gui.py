@@ -8,7 +8,7 @@ import sys
 from collections import deque
 from functools import partial
 from subprocess import Popen  # nosec - Need to allow users to specify arbitrary commands
-from typing import Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union, cast
 
 from importlib_metadata import PackageNotFoundError, version
 from PIL import Image
@@ -2766,11 +2766,6 @@ class SnakeGame(QWidget):
         top_row = QHBoxLayout()
         self._status = QLabel(self)
         top_row.addWidget(self._status, 1)
-        self._deck_button = QPushButton("Play on Stream Deck", self)
-        self._deck_button.setToolTip("Take over the connected Stream Deck and play on its keys")
-        self._deck_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._deck_button.clicked.connect(self._toggle_deck)
-        top_row.addWidget(self._deck_button)
         outer.addLayout(top_row)
 
         board = QWidget(self)
@@ -2802,9 +2797,15 @@ class SnakeGame(QWidget):
         self._timer = QTimer(self)
         self._timer.setInterval(180)
         self._timer.timeout.connect(self._tick)
+        # After a crash the game restarts itself a few seconds later.
+        self._dead_timer = QTimer(self)
+        self._dead_timer.setSingleShot(True)
+        self._dead_timer.setInterval(3000)
+        self._dead_timer.timeout.connect(self._reset)
         self._reset()
 
     def _reset(self) -> None:
+        self._dead_timer.stop()
         cx, cy = self._width // 2, self._height // 2
         # The snake is a deque with the tail at index 0 and the head at index -1.
         self._snake: "deque[Tuple[int, int]]" = deque([(cx - 2, cy), (cx - 1, cy), (cx, cy)])
@@ -2867,8 +2868,9 @@ class SnakeGame(QWidget):
     def _game_over(self, win: bool = False) -> None:
         self._alive = False
         self._timer.stop()
+        self._dead_timer.start()  # auto-restart after a few seconds
         prefix = "You win! " if win else "Game over! "
-        self._status.setText(f"{prefix}Score: {self._score}  —  press ⟳ to restart")
+        self._status.setText(f"{prefix}Score: {self._score}  —  restarting in 3s (or press ⟳)")
 
     def _render(self) -> None:
         head = self._snake[-1]
@@ -2908,31 +2910,34 @@ class SnakeGame(QWidget):
     def showEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().showEvent(event)
         self.setFocus()
+        # Opening the tab automatically takes over a connected deck so you can
+        # play on its keys; Snake needs the right two columns for the d-pad.
+        _start_deck_game(DeckSnake, min_cols=4, min_rows=2)
 
     def hideEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().hideEvent(event)
         self._timer.stop()
+        self._dead_timer.stop()
         # Leaving the tab returns the deck to its normal display.
         if deck_game is not None:
             deck_game.stop()
-            self._deck_button.setText("Play on Stream Deck")
 
-    def _toggle_deck(self) -> None:
-        if deck_game is not None:
-            deck_game.stop()
-            self._deck_button.setText("Play on Stream Deck")
-            return
-        deck_id = _deck()
-        deck = api.decks_by_serial.get(deck_id) if deck_id is not None else None
-        if deck_id is None or deck is None or not deck.is_visual():
-            QMessageBox.information(self, "No Stream Deck", "Connect a Stream Deck to play on its keys.")
-            return
-        rows, cols = api.get_deck_layout(deck_id)
-        if cols < 2 or rows < 2:
-            QMessageBox.information(self, "Stream Deck too small", "This Stream Deck has too few keys for the game.")
-            return
-        DeckSnake(main_window.ui, deck_id).start()
-        self._deck_button.setText("Stop on Stream Deck")
+
+def _start_deck_game(game_cls: Type["DeckGame"], min_cols: int = 2, min_rows: int = 2) -> None:
+    """Starts an on-deck mini-game on the connected deck if one is available and
+    big enough, so a game tab plays on the keys automatically. Quietly does
+    nothing when there is no usable deck or a game is already running."""
+    global deck_game
+    if deck_game is not None or main_window is None:
+        return
+    deck_id = _deck()
+    deck = api.decks_by_serial.get(deck_id) if deck_id is not None else None
+    if deck_id is None or deck is None or not deck.is_visual():
+        return
+    rows, cols = api.get_deck_layout(deck_id)
+    if cols < min_cols or rows < min_rows:
+        return
+    game_cls(main_window.ui, deck_id).start()
 
 
 class DeckGame:
@@ -2943,6 +2948,12 @@ class DeckGame:
 
     deck_id: str
 
+    def __init__(self, ui, deck_id: str) -> None:  # pragma: no cover - overridden
+        self.deck_id = deck_id
+
+    def start(self) -> None:  # pragma: no cover - overridden
+        raise NotImplementedError
+
     def on_key(self, key: int) -> None:  # pragma: no cover - overridden
         raise NotImplementedError
 
@@ -2952,37 +2963,58 @@ class DeckGame:
 
 class DeckSnake(DeckGame):
     """Plays Snake on the physical Stream Deck. While active it pauses the normal
-    render loop and draws the game straight to the keys; the rightmost column
-    becomes the controls. Two-button relative turning (turn left / turn right,
-    plus restart) keeps it playable on any deck size."""
+    render loop and draws the game straight to the keys; the right two columns
+    hold a four-arrow d-pad. Movement starts when you press an arrow, and a crash
+    restarts the game automatically a few seconds later."""
 
     _EMPTY = (18, 19, 24)
     _BODY = (58, 166, 87)
     _HEAD = (124, 252, 138)
     _FOOD = (224, 85, 97)
     _CONTROL_BG = (40, 42, 52)
-    _CONTROL_ICONS = {"left": "rotate-left", "right": "rotate-right", "restart": "arrows-rotate"}
+    _CONTROL_ICONS = {"up": "arrow-up", "down": "arrow-down", "left": "arrow-left", "right": "arrow-right"}
+    _DELTAS = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}
 
     def __init__(self, ui, deck_id: str):
         self._ui = ui
         self.deck_id = deck_id
         self.display = api.display_handlers[deck_id]
         self.rows, self.cols = api.get_deck_layout(deck_id)
-        self.play_w = self.cols - 1
+        self.play_w = max(self.cols - 2, 2)  # the right two columns hold the d-pad
         self.play_h = self.rows
         self.model = SnakeModel(self.play_w, self.play_h)
-
-        last = self.cols - 1
-        self._controls: Dict[int, str] = {0 * self.cols + last: "left"}
-        if self.rows >= 2:
-            self._controls[1 * self.cols + last] = "right"
-        if self.rows >= 3:
-            self._controls[2 * self.cols + last] = "restart"
+        self._controls = self._build_controls()
         self._icon_cache: Dict[str, Optional[Image.Image]] = {}
 
         self.timer = QTimer()
         self.timer.setInterval(180)
         self.timer.timeout.connect(self._tick)
+        # After a crash the board is dealt fresh a few seconds later.
+        self._dead_timer = QTimer()
+        self._dead_timer.setSingleShot(True)
+        self._dead_timer.setInterval(3000)
+        self._dead_timer.timeout.connect(self._revive)
+
+    def _build_controls(self) -> Dict[int, str]:
+        """Lays out a four-arrow d-pad in the rightmost two columns. On decks with
+        three or more rows it is a vertically centred plus; on a two-row deck the
+        arrows fall back to a 2x2 cluster."""
+        right = self.cols - 1
+        left = self.cols - 2
+        if self.rows >= 3:
+            mid = self.rows // 2
+            return {
+                (mid - 1) * self.cols + right: "up",
+                mid * self.cols + left: "left",
+                mid * self.cols + right: "right",
+                (mid + 1) * self.cols + right: "down",
+            }
+        return {
+            0 * self.cols + right: "up",
+            1 * self.cols + right: "down",
+            0 * self.cols + left: "left",
+            1 * self.cols + left: "right",
+        }
 
     def start(self) -> None:
         global deck_game
@@ -2995,6 +3027,7 @@ class DeckSnake(DeckGame):
     def stop(self, restore: bool = True) -> None:
         global deck_game
         self.timer.stop()
+        self._dead_timer.stop()
         if deck_game is self:
             deck_game = None
         if restore:
@@ -3004,24 +3037,27 @@ class DeckSnake(DeckGame):
                 print(f"Could not resume the display after the on-deck game: {error}")
 
     def on_key(self, key: int) -> None:
+        if self._dead_timer.isActive():
+            return  # ignore presses during the brief pause after a crash
         action = self._controls.get(key)
-        if action == "restart":
-            self.model.reset()
-        elif action == "left":
-            self.model.turn(left=True)
-        elif action == "right":
-            self.model.turn(left=False)
-        else:
+        if action is None:
             return
+        self.model.set_direction(self._DELTAS[action])
         api.reset_dimmer(self.deck_id)
         if self.model.alive and not self.timer.isActive():
-            self.timer.start()
+            self.timer.start()  # the first arrow press starts the game
         self._render()
 
     def _tick(self) -> None:
         if not self.model.step():
             self.timer.stop()
+            if not self.model.alive:
+                self._dead_timer.start()  # auto-restart shortly after a crash
         self._render()
+
+    def _revive(self) -> None:
+        self.model.reset()
+        self._render()  # movement resumes when an arrow is pressed again
 
     def _render(self) -> None:
         try:
@@ -3047,7 +3083,8 @@ class DeckSnake(DeckGame):
             else:
                 color = self._EMPTY
             return Image.new("RGB", self.display.size, color)
-        return Image.new("RGB", self.display.size, (0, 0, 0))
+        # An empty key in the d-pad area on the right.
+        return Image.new("RGB", self.display.size, self._CONTROL_BG)
 
     def _control_image(self, action: str) -> Image.Image:
         image = Image.new("RGB", self.display.size, self._CONTROL_BG)
@@ -3092,11 +3129,6 @@ class LightsOutGame(QWidget):
         self._new_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._new_button.clicked.connect(self._new_game)
         top_row.addWidget(self._new_button)
-        self._deck_button = QPushButton("Play on Stream Deck", self)
-        self._deck_button.setToolTip("Take over the connected Stream Deck and play on its keys")
-        self._deck_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._deck_button.clicked.connect(self._toggle_deck)
-        top_row.addWidget(self._deck_button)
         outer.addLayout(top_row)
 
         board = QWidget(self)
@@ -3136,29 +3168,16 @@ class LightsOutGame(QWidget):
             lit = sum(1 for y in range(self.model.height) for x in range(self.model.width) if self.model.is_lit(x, y))
             self._status.setText(f"Lights Out — turn every light off.  Lit: {lit}   Moves: {self.model.moves}")
 
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().showEvent(event)
+        # Opening the tab automatically plays the puzzle on a connected deck.
+        _start_deck_game(DeckLightsOut, min_cols=2, min_rows=2)
+
     def hideEvent(self, event) -> None:  # noqa: N802 - Qt override
         super().hideEvent(event)
         # Leaving the tab returns the deck to its normal display.
         if deck_game is not None:
             deck_game.stop()
-            self._deck_button.setText("Play on Stream Deck")
-
-    def _toggle_deck(self) -> None:
-        if deck_game is not None:
-            deck_game.stop()
-            self._deck_button.setText("Play on Stream Deck")
-            return
-        deck_id = _deck()
-        deck = api.decks_by_serial.get(deck_id) if deck_id is not None else None
-        if deck_id is None or deck is None or not deck.is_visual():
-            QMessageBox.information(self, "No Stream Deck", "Connect a Stream Deck to play on its keys.")
-            return
-        rows, cols = api.get_deck_layout(deck_id)
-        if cols < 2 or rows < 2:
-            QMessageBox.information(self, "Stream Deck too small", "This Stream Deck has too few keys for the game.")
-            return
-        DeckLightsOut(main_window.ui, deck_id).start()
-        self._deck_button.setText("Stop on Stream Deck")
 
 
 class DeckLightsOut(DeckGame):
